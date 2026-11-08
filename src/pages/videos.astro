@@ -1,0 +1,29 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import YouTubeEmbed from '../components/YouTubeEmbed.astro';
+import { videos } from '../data/videos';
+import { person } from '../data/site';
+---
+<BaseLayout title="Videos" description={`Videos remembering ${person.fullName}.`}>
+  <header class="section page-head">
+    <div class="container container--narrow section-head">
+      <p class="eyebrow">Videos</p>
+      <h1>Her voice, her laughter</h1>
+      <Ornament />
+      <p class="data-note">
+        Videos load only when you press play. Streaming uses mobile data
+        (roughly 3–5 MB per minute at 360p). Lower the quality from the player's ⚙ menu to save data.
+      </p>
+    </div>
+  </header>
+  <div class="container container--narrow video-list">
+    {videos.map((v) => <YouTubeEmbed {...v} />)}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head { padding-bottom: var(--space-m); }
+  .data-note { max-width: 46ch; color: var(--ink-soft); font-size: var(--step--1); }
+  .video-list { display: grid; gap: var(--space-l); padding-bottom: var(--space-xl); }
+</style>

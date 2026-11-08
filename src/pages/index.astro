@@ -1,0 +1,149 @@
+---
+// home page
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import Ornament from '../components/Ornament.astro';
+import TributeSpotlight from '../components/TributeSpotlight.astro';
+import FuneralProgramme from '../components/FuneralProgramme.astro';
+import ImageGallery from '../components/ImageGallery.astro';
+import YouTubeEmbed from '../components/YouTubeEmbed.astro';
+import { getCollection } from 'astro:content';
+import { announcement, mourners } from '../data/site';
+import { photos } from '../data/gallery';
+import { videos } from '../data/videos';
+import { spotlightPools } from '../lib/tributes';
+import { url } from '../lib/url';
+
+const chapters = (await getCollection('chapters')).sort((a, b) => a.data.order - b.data.order);
+const [poolA, poolB, poolC] = await spotlightPools(3);
+const previewPhotos = photos.slice(-6).reverse();
+const featuredVideo = videos[0];
+---
+<BaseLayout>
+  <Hero />
+
+  <section class="section" aria-labelledby="announce-title">
+    <div class="container container--narrow announce">
+      <h2 id="announce-title" class="visually-hidden">Announcement</h2>
+      <p class="announce__lead">{announcement}</p>
+      <p class="announce__mourn"><span class="eyebrow">Left to mourn her are</span><br />{mourners}.</p>
+    </div>
+  </section>
+
+  <section class="section section--paper defer-render" aria-labelledby="story-title">
+    <div class="container container--narrow">
+      <header class="section-head">
+        <p class="eyebrow">Her Story</p>
+        <h2 id="story-title">A life of faith, family and open doors</h2>
+        <Ornament />
+      </header>
+      <ol class="story-teaser" role="list">
+        {chapters.map((c) => (
+          <li>
+            <a href={`${url('her-story')}#${c.id}`}>
+              <span class="story-teaser__period">{c.data.period}</span>
+              <span class="story-teaser__title">{c.data.title}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+      <p class="center"><a class="button" href={url('her-story')} data-astro-prefetch>Read her story</a></p>
+    </div>
+  </section>
+
+  <TributeSpotlight pool={poolA} variant="band" />
+
+  <section class="section defer-render" aria-labelledby="funeral-title">
+    <div class="container container--narrow">
+      <header class="section-head">
+        <p class="eyebrow">Funeral Arrangements</p>
+        <h2 id="funeral-title">Join us in laying her to rest</h2>
+        <Ornament />
+      </header>
+      <FuneralProgramme compact />
+    </div>
+  </section>
+
+  <section class="section section--paper defer-render" aria-labelledby="photos-title">
+    <div class="container">
+      <header class="section-head">
+        <p class="eyebrow">Photographs</p>
+        <h2 id="photos-title">Moments we hold dear</h2>
+        <Ornament />
+      </header>
+      <ImageGallery photos={previewPhotos} variant="preview" label="Selected photographs" />
+      <p class="center more"><a class="button button--ghost" href={url('gallery')} data-astro-prefetch>View all photographs</a></p>
+    </div>
+  </section>
+
+  <div class="container container--narrow">
+    <TributeSpotlight pool={poolB} variant="inline" />
+  </div>
+
+  {featuredVideo && (
+    <section class="section defer-render" aria-labelledby="video-title">
+      <div class="container container--narrow">
+        <header class="section-head">
+          <p class="eyebrow">In Motion</p>
+          <h2 id="video-title">Her voice, her laughter</h2>
+          <Ornament />
+        </header>
+        <YouTubeEmbed {...featuredVideo} />
+        <p class="center more"><a href={url('videos')}>More videos →</a></p>
+      </div>
+    </section>
+  )}
+
+  <TributeSpotlight pool={poolC} variant="band" />
+
+  <section class="section defer-render" aria-labelledby="write-title">
+    <div class="container container--narrow center">
+      <h2 id="write-title">Share your memory of Nne</h2>
+      <p class="write-lead">Her life touched many. Your words, with a photograph if you like, will become part of this memorial.</p>
+      <p class="button-row button-row--center">
+        <a class="button" href={`${url('tributes')}#write`}>Write a tribute</a>
+        <a class="button button--ghost" href={url('tributes')} data-astro-prefetch>Read all tributes</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .center { text-align: center; }
+  .more { margin-top: var(--space-m); }
+  .button-row--center { justify-content: center; margin-top: var(--space-m); }
+  .write-lead { margin-top: var(--space-s); color: var(--ink-soft); }
+
+  .announce { text-align: center; display: grid; gap: var(--space-m); }
+  .announce__lead {
+    font-size: var(--step-1);
+    line-height: 1.55;
+    color: var(--ink);
+  }
+  .announce__mourn { color: var(--ink-soft); }
+
+  .story-teaser {
+    display: grid;
+    gap: 1px;
+    margin-bottom: var(--space-l);
+    padding: 0;
+    list-style: none;
+    background: var(--line);
+    border-block: 1px solid var(--line);
+  }
+  .story-teaser a {
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: var(--space-s);
+    align-items: baseline;
+    min-height: 44px;
+    padding: var(--space-s) var(--space-xs);
+    background: var(--paper);
+    text-decoration: none;
+    color: var(--ink);
+  }
+  .story-teaser a:hover { background: var(--paper-deep); }
+  @media (max-width: 30rem) { .story-teaser a { grid-template-columns: 1fr; gap: 0; } }
+  .story-teaser__period { color: var(--copper); font-size: var(--step--1); letter-spacing: 0.06em; }
+  .story-teaser__title { font-family: var(--font-head); font-weight: 600; font-size: var(--step-1); color: var(--navy); }
+</style>

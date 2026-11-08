@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import ImageGallery from '../components/ImageGallery.astro';
+import { photos } from '../data/gallery';
+import { person } from '../data/site';
+---
+<BaseLayout title="Gallery" description={`Photographs from the life of ${person.fullName}.`}>
+  <header class="section page-head">
+    <div class="container container--narrow section-head">
+      <p class="eyebrow">Gallery</p>
+      <h1>Seventy-eight years in pictures</h1>
+      <Ornament />
+    </div>
+  </header>
+  <div class="container gallery-wrap">
+    <ImageGallery photos={photos} offlineButton label="Photographs of Nne through the years" />
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head { padding-bottom: var(--space-m); }
+  .gallery-wrap { padding-bottom: var(--space-xl); }
+</style>

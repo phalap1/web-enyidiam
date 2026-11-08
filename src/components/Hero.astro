@@ -1,0 +1,145 @@
+---
+// homepage hero, lettering follows the burial poster
+import { Picture } from 'astro:assets';
+import Ornament from './Ornament.astro';
+import { person } from '../data/site';
+import { portraits } from '../data/gallery';
+---
+<section class="hero" aria-labelledby="hero-name">
+  <div class="container hero__grid">
+    <div class="hero__text">
+      <p class="hero__exit"><span class="eyebrow">Exit of</span> <span class="script hero__praise">{person.praiseName}</span></p>
+      <Ornament />
+      <h1 id="hero-name" class="hero__name">
+        <span class="script hero__honorific">{person.honorific}</span>
+        <span class="hero__first">{person.title} {person.firstName}</span>
+        <span class="hero__christian">{person.christianName}</span>
+        <span class="hero__surname">{person.surname}</span>
+      </h1>
+      <p class="hero__dates">
+        <span class="hero__medal" aria-hidden="true"><small>Aged</small>{person.age}</span>
+        <span>
+          <time datetime={String(person.born)}>{person.born}</time> –
+          <time datetime={String(person.died)}>{person.died}</time>
+          <span class="visually-hidden">, aged {person.age}</span>
+          <br /><span class="hero__town">{person.hometown}</span>
+        </span>
+      </p>
+    </div>
+
+    <div class="hero__portrait">
+      <Picture
+        src={portraits.redGele}
+        alt={`${person.fullName} smiling in a red and gold head-tie and coral beads`}
+        formats={['avif']}
+        fallbackFormat="webp"
+        widths={[280, 434]}
+        sizes="(min-width: 56rem) 26rem, 72vw"
+        quality={62}
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+        class="hero__img"
+      />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    padding-block: var(--space-l) var(--space-xl);
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 60% 50% at 100% 0%, rgb(185 203 234 / 55%), transparent 70%),
+      radial-gradient(ellipse 50% 45% at 0% 100%, rgb(230 207 152 / 45%), transparent 70%),
+      var(--ivory);
+  }
+  .hero__grid {
+    display: grid;
+    gap: var(--space-l);
+    align-items: center;
+  }
+  @media (min-width: 56rem) {
+    .hero__grid { grid-template-columns: 1.15fr 1fr; }
+  }
+
+  .hero__text { display: grid; gap: var(--space-s); text-align: center; justify-items: center; }
+  @media (min-width: 56rem) { .hero__text { text-align: start; justify-items: start; } .hero__text :global(.ornament) { margin-inline: 0; } }
+
+  .hero__exit { display: grid; line-height: 1; }
+  .hero__praise { font-size: var(--step-4); color: var(--navy); }
+
+  .hero__name { display: grid; gap: 0.1em; color: var(--navy); }
+  .hero__honorific { font-size: var(--step-2); }
+  .hero__first {
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: var(--step-1);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .hero__christian {
+    font-size: var(--step-4);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--navy);
+    line-height: 0.95;
+  }
+  .hero__surname {
+    font-size: var(--step-4);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+    line-height: 0.95;
+  }
+
+  .hero__dates {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    text-align: start;
+    font-size: var(--step-1);
+    font-family: var(--font-head);
+    font-weight: 600;
+    color: var(--navy);
+  }
+  .hero__town { font-family: var(--font-body); font-weight: 400; font-size: var(--step--1); color: var(--ink-soft); }
+
+  /* aged 78 badge */
+  .hero__medal {
+    flex: none;
+    display: grid;
+    place-content: center;
+    width: 5.2rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #9b2a35, var(--wine) 70%);
+    box-shadow: 0 0 0 3px var(--ivory), 0 0 0 5px var(--gold);
+    color: #fff;
+    font-family: var(--font-head);
+    font-size: 2.1rem;
+    line-height: 0.9;
+    text-align: center;
+  }
+  .hero__medal small {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold-soft);
+  }
+
+  .hero__portrait {
+    justify-self: center;
+    width: min(26rem, 72vw);
+    aspect-ratio: 434 / 535;
+    border-radius: 999px 999px var(--radius) var(--radius);
+    overflow: hidden;
+    background: var(--paper-deep);
+    box-shadow: 0 0 0 6px var(--ivory), 0 0 0 7px var(--gold), var(--shadow);
+  }
+  .hero__portrait :global(picture),
+  .hero__portrait :global(.hero__img) { width: 100%; height: 100%; object-fit: cover; }
+</style>

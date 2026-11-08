@@ -1,0 +1,253 @@
+---
+// photo grid: avif + webp, lazy loaded, fixed sizes.
+// links open the large image; with js they open in a <dialog> instead.
+import { Picture, getImage } from 'astro:assets';
+import type { Photo } from '../data/gallery';
+
+interface Props {
+  photos: Photo[];
+  variant?: 'grid' | 'preview';
+  offlineButton?: boolean;
+  label?: string;
+}
+
+const { photos, variant = 'grid', offlineButton = false, label = 'Photographs' } = Astro.props;
+
+const THUMB_WIDTHS = [320, 480, 720];
+const sizes =
+  variant === 'preview'
+    ? '(min-width: 60rem) 22rem, (min-width: 36rem) 30vw, 46vw'
+    : '(min-width: 72rem) 22rem, (min-width: 48rem) 30vw, (min-width: 30rem) 46vw, 92vw';
+
+const items = await Promise.all(
+  photos.map(async (p) => {
+    const widths = THUMB_WIDTHS.filter((w) => w <= p.src.width);
+    if (!widths.length) widths.push(p.src.width);
+    const large = await getImage({
+      src: p.src,
+      width: Math.min(1400, p.src.width),
+      format: 'webp',
+      quality: 72,
+    });
+    return { ...p, widths, large: large.src };
+  }),
+);
+---
+<div class:list={['gallery', `gallery--${variant}`]} data-gallery>
+  {offlineButton && (
+    <div class="gallery__offline" data-offline hidden>
+      <button type="button" class="button button--ghost" data-offline-btn>
+        Save photos for offline viewing
+      </button>
+      <p class="gallery__offline-status" role="status" aria-live="polite" data-offline-status>
+        About {items.length} photos. Uses mobile data once, then works without a connection.
+      </p>
+    </div>
+  )}
+
+  <ul class="gallery__list" role="list" aria-label={label}>
+    {items.map((p, i) => (
+      <li class="gallery__item">
+        <figure>
+          <a class="gallery__link" href={p.large} data-index={i} data-caption={p.caption ?? p.alt}>
+            <Picture
+              src={p.src}
+              alt={p.alt}
+              formats={['avif']}
+              fallbackFormat="webp"
+              widths={p.widths}
+              sizes={sizes}
+              quality={58}
+              loading="lazy"
+              decoding="async"
+              class="gallery__img"
+            />
+          </a>
+          {(p.caption || p.era) && (
+            <figcaption>
+              {p.caption}
+              {p.era && <span class="gallery__era">{p.era}</span>}
+            </figcaption>
+          )}
+        </figure>
+      </li>
+    ))}
+  </ul>
+
+  <dialog class="lightbox" aria-label="Photograph viewer">
+    <figure class="lightbox__figure">
+      <figcaption class="lightbox__caption"></figcaption>
+    </figure>
+    <div class="lightbox__controls">
+      <button type="button" class="lightbox__btn" data-prev aria-label="Previous photograph">‹</button>
+      <form method="dialog"><button class="lightbox__btn" aria-label="Close">×</button></form>
+      <button type="button" class="lightbox__btn" data-next aria-label="Next photograph">›</button>
+    </div>
+  </dialog>
+</div>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('[data-gallery]')) {
+    const links = [...root.querySelectorAll<HTMLAnchorElement>('.gallery__link')];
+    const dialog = root.querySelector<HTMLDialogElement>('.lightbox');
+    const img = document.createElement('img');
+    img.className = 'lightbox__img';
+    img.decoding = 'async';
+    const cap = dialog?.querySelector<HTMLElement>('.lightbox__caption');
+    let current = 0;
+
+    // lightbox
+    if (dialog && cap && typeof dialog.showModal === 'function') {
+      const show = (i: number) => {
+        current = (i + links.length) % links.length;
+        if (!img.isConnected) dialog.querySelector('.lightbox__figure')?.prepend(img);
+        const link = links[current];
+        const thumb = link.querySelector('img');
+        // show the thumbnail first, swap in the big one when it loads
+        img.src = thumb?.currentSrc || link.href;
+        img.alt = thumb?.alt ?? '';
+        cap.textContent = link.dataset.caption ?? '';
+        const full = new Image();
+        full.decoding = 'async';
+        full.onload = () => { if (current === i) img.src = full.src; };
+        full.src = link.href;
+      };
+
+      links.forEach((link, i) =>
+        link.addEventListener('click', (e) => {
+          if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+          e.preventDefault();
+          show(i);
+          dialog.showModal();
+        }),
+      );
+      dialog.querySelector('[data-prev]')?.addEventListener('click', () => show(current - 1));
+      dialog.querySelector('[data-next]')?.addEventListener('click', () => show(current + 1));
+      dialog.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') show(current - 1);
+        if (e.key === 'ArrowRight') show(current + 1);
+      });
+      dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+    }
+
+    // save for offline
+    const box = root.querySelector<HTMLElement>('[data-offline]');
+    const btn = root.querySelector<HTMLButtonElement>('[data-offline-btn]');
+    const status = root.querySelector<HTMLElement>('[data-offline-status]');
+    if (box && btn && status && 'serviceWorker' in navigator && 'MessageChannel' in window) {
+      box.hidden = false;
+      btn.addEventListener('click', async () => {
+        const reg = await navigator.serviceWorker.ready;
+        if (!reg.active) return;
+        btn.disabled = true;
+        const urls = links.map((l) => l.href);
+        const channel = new MessageChannel();
+        channel.port1.onmessage = ({ data }) => {
+          status.textContent =
+            data.type === 'complete'
+              ? data.failed
+                ? `Saved ${data.done} of ${data.total}. ${data.failed} could not download; tap again to retry.`
+                : `All ${data.total} photos saved. They will open even without a connection.`
+              : `Saving… ${data.done} of ${data.total}`;
+          if (data.type === 'complete') btn.disabled = false;
+        };
+        reg.active.postMessage({ type: 'CACHE_URLS', urls }, [channel.port2]);
+      });
+    }
+  }
+</script>
+
+<style>
+  .gallery__offline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-s);
+    margin-bottom: var(--space-m);
+  }
+  .gallery__offline-status { color: var(--ink-soft); font-size: var(--step--1); }
+
+  .gallery__list {
+    padding: 0;
+    list-style: none;
+  }
+
+  /* masonry with columns */
+  .gallery--grid .gallery__list {
+    columns: 16rem;
+    column-gap: var(--space-m);
+  }
+  .gallery--grid .gallery__item {
+    break-inside: avoid;
+    margin-bottom: var(--space-m);
+  }
+
+  .gallery--preview .gallery__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+    gap: var(--space-s);
+  }
+  .gallery--preview .gallery__link { aspect-ratio: 4 / 5; }
+  .gallery--preview :global(.gallery__img) { height: 100%; object-fit: cover; }
+
+  .gallery__link {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--paper-deep);
+    box-shadow: var(--shadow);
+  }
+  .gallery__link :global(picture) { height: 100%; }
+  .gallery__link :global(.gallery__img) {
+    width: 100%;
+    transition: transform 0.4s ease;
+  }
+  .gallery__link:hover :global(.gallery__img) { transform: scale(1.02); }
+
+  figcaption {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-xs);
+    padding-top: 0.45rem;
+    font-size: var(--step--1);
+    color: var(--ink-soft);
+  }
+  .gallery__era { color: var(--copper); letter-spacing: 0.08em; flex: none; }
+
+  /* lightbox */
+  .lightbox {
+    width: min(100vw, 70rem);
+    max-width: 100vw;
+    max-height: 100dvh;
+    padding: var(--space-s);
+    border: 0;
+    background: transparent;
+    color: #fff;
+  }
+  .lightbox::backdrop { background: rgb(12 18 36 / 92%); }
+  .lightbox__figure { display: grid; justify-items: center; gap: var(--space-xs); }
+  .lightbox :global(.lightbox__img) {
+    max-height: 78dvh;
+    width: auto;
+    border-radius: var(--radius);
+  }
+  .lightbox__caption { color: #eee; justify-content: center; }
+  .lightbox__controls {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-m);
+    margin-top: var(--space-s);
+  }
+  .lightbox__btn {
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgb(255 255 255 / 40%);
+    border-radius: 50%;
+    background: rgb(255 255 255 / 8%);
+    color: #fff;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .lightbox__btn:hover { background: rgb(255 255 255 / 20%); }
+</style>

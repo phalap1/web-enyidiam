@@ -1,0 +1,93 @@
+---
+import { url } from '../lib/url';
+import { person } from '../data/site';
+
+const links = [
+  { href: url(), label: 'Home' },
+  { href: url('her-story'), label: 'Her Story' },
+  { href: url('tributes'), label: 'Tributes' },
+  { href: url('gallery'), label: 'Gallery' },
+  { href: url('videos'), label: 'Videos' },
+  { href: url('funeral'), label: 'Funeral' },
+];
+
+const here = Astro.url.pathname.replace(/\/?$/, '/');
+---
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href={url()} aria-label={`${person.fullName}, home`}>
+      <span class="brand__name">{person.firstName} {person.christianName} {person.surname}</span>
+      <span class="brand__dates">{person.born} – {person.died}</span>
+    </a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        {links.map((l) => (
+          <li>
+            <a href={l.href} data-astro-prefetch aria-current={here === l.href ? 'page' : undefined}>{l.label}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--ivory) 92%, transparent);
+  }
+  .site-header__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-m);
+    padding-block: var(--space-s);
+  }
+  .brand {
+    display: grid;
+    text-decoration: none;
+    line-height: 1.15;
+  }
+  .brand__name {
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: var(--step-1);
+    color: var(--navy);
+  }
+  .brand__dates {
+    font-size: var(--step--1);
+    letter-spacing: 0.18em;
+    color: var(--copper);
+  }
+  nav { max-width: 100%; }
+  .nav {
+    display: flex;
+    gap: 0.15rem;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  @media (min-width: 60rem) { .nav { mask-image: none; } }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 0.7rem;
+    white-space: nowrap;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: var(--step--1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .nav a:hover { color: var(--navy); }
+  .nav a[aria-current='page'] {
+    color: var(--navy);
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
+</style>

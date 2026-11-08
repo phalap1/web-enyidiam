@@ -1,0 +1,12 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { url } from '../lib/url';
+---
+<BaseLayout title="Page not found">
+  <section class="section">
+    <div class="container container--narrow section-head">
+      <h1>This page could not be found</h1>
+      <p><a class="button" href={url()}>Return home</a></p>
+    </div>
+  </section>
+</BaseLayout>

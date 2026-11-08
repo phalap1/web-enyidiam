@@ -1,0 +1,213 @@
+---
+// click-to-load youtube. renders a normal link + poster image,
+// the iframe is only created when someone presses play.
+import { Picture } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  id: string;
+  title: string;
+  description?: string;
+  duration?: string;
+  poster?: ImageMetadata;
+  sizes?: string;
+}
+
+const { id, title, description, duration, poster, sizes = '(min-width: 60rem) 46rem, 94vw' } = Astro.props;
+const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+---
+<figure class="yt">
+  <yt-facade data-id={id} data-title={title}>
+    <a class="yt__link" href={watchUrl} target="_blank" rel="noopener">
+      {poster ? (
+        <Picture
+          src={poster}
+          alt=""
+          formats={['avif']}
+          fallbackFormat="webp"
+          widths={[400, 640, 960]}
+          sizes={sizes}
+          quality={55}
+          loading="lazy"
+          decoding="async"
+          class="yt__poster"
+        />
+      ) : (
+        <picture>
+          <source type="image/webp" srcset={`https://i.ytimg.com/vi_webp/${id}/hqdefault.webp`} />
+          <img
+            class="yt__poster"
+            src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
+            alt=""
+            width="480"
+            height="360"
+            loading="lazy"
+            decoding="async"
+          />
+        </picture>
+      )}
+      <span class="yt__play" aria-hidden="true">
+        <svg viewBox="0 0 68 48" width="68" height="48"><path d="M66.5 7.7a8.5 8.5 0 0 0-6-6C55.2.3 34 .3 34 .3s-21.2 0-26.5 1.4a8.5 8.5 0 0 0-6 6C.1 13 .1 24 .1 24s0 11 1.4 16.3a8.5 8.5 0 0 0 6 6C12.8 47.7 34 47.7 34 47.7s21.2 0 26.5-1.4a8.5 8.5 0 0 0 6-6C67.9 35 67.9 24 67.9 24s0-11-1.4-16.3Z" fill="#7a1e28" fill-opacity=".92"/><path d="M45 24 27 14v20" fill="#fff"/></svg>
+      </span>
+      <span class="yt__label">
+        <span class="visually-hidden">Play video: </span>{title}
+        {duration && <span class="yt__duration">{duration}</span>}
+      </span>
+    </a>
+  </yt-facade>
+  {description && <figcaption class="yt__caption">{description}</figcaption>}
+</figure>
+
+<script>
+  class YtFacade extends HTMLElement {
+    #warmed = false;
+
+    connectedCallback() {
+      const link = this.querySelector('a');
+      if (!link) return;
+      // preconnect when the user looks like they will press play
+      const warm = () => this.#warm();
+      link.addEventListener('pointerover', warm, { once: true, passive: true });
+      link.addEventListener('touchstart', warm, { once: true, passive: true });
+      link.addEventListener('focus', warm, { once: true });
+      link.addEventListener('click', (event) => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+        event.preventDefault();
+        this.#activate();
+      });
+    }
+
+    #warm() {
+      if (this.#warmed) return;
+      this.#warmed = true;
+      for (const origin of ['https://www.youtube-nocookie.com', 'https://www.google.com']) {
+        const l = document.createElement('link');
+        l.rel = 'preconnect';
+        l.href = origin;
+        document.head.append(l);
+      }
+    }
+
+    #activate() {
+      if (!navigator.onLine) {
+        this.#notice('You are offline. The video will play once you are connected again.');
+        return;
+      }
+      const id = encodeURIComponent(this.dataset.id ?? '');
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+      iframe.title = this.dataset.title ?? 'YouTube video';
+      iframe.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      this.replaceChildren(iframe);
+      iframe.focus();
+    }
+
+    #notice(text: string) {
+      let n = this.querySelector<HTMLElement>('.yt__notice');
+      if (!n) {
+        n = document.createElement('p');
+        n.className = 'yt__notice';
+        n.setAttribute('role', 'status');
+        this.append(n);
+      }
+      n.textContent = text;
+    }
+  }
+
+  if (!customElements.get('yt-facade')) customElements.define('yt-facade', YtFacade);
+</script>
+
+<style>
+  .yt { display: grid; gap: var(--space-xs); }
+
+  yt-facade {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: var(--navy-deep);
+    box-shadow: var(--shadow);
+  }
+
+  .yt__link {
+    position: absolute;
+    inset: 0;
+    display: block;
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .yt__link :global(picture),
+  .yt__link :global(.yt__poster) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .yt__link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 45%, rgb(15 23 45 / 75%));
+  }
+
+  .yt__play {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    z-index: 1;
+    transition: transform 0.2s;
+  }
+  .yt__link:hover .yt__play,
+  .yt__link:focus-visible .yt__play { transform: scale(1.08); }
+
+  .yt__label {
+    position: absolute;
+    inset: auto var(--space-s) var(--space-s);
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: var(--space-s);
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.2;
+  }
+  .yt__duration {
+    flex: none;
+    padding: 0.1em 0.5em;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 55%);
+    font-family: var(--font-body);
+    font-size: var(--step--1);
+    font-weight: 400;
+  }
+
+  yt-facade :global(iframe) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  yt-facade :global(.yt__notice) {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 2;
+    margin: 0;
+    padding: 0.6rem var(--space-s);
+    background: var(--wine);
+    color: #fff;
+    font-size: var(--step--1);
+  }
+
+  .yt__caption {
+    color: var(--ink-soft);
+    font-size: var(--step--1);
+  }
+</style>

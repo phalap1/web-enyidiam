@@ -1,0 +1,79 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import TributeSpotlight from '../components/TributeSpotlight.astro';
+import { Picture } from 'astro:assets';
+import { getCollection, render } from 'astro:content';
+import { person } from '../data/site';
+import { spotlightPools } from '../lib/tributes';
+
+const chapters = (await getCollection('chapters')).sort((a, b) => a.data.order - b.data.order);
+const rendered = await Promise.all(chapters.map(async (c) => ({ c, Content: (await render(c)).Content })));
+const pools = await spotlightPools(2, 1);
+const spotAfter: Record<number, number> = { 1: 0, 3: 1 };
+---
+<BaseLayout title="Her Story" description={`The life of ${person.fullName}, ${person.born} – ${person.died}, told by her family.`}>
+  <header class="section page-head">
+    <div class="container container--narrow section-head">
+      <p class="eyebrow">{person.born} – {person.died}</p>
+      <h1>The story of <span class="script praise">{person.praiseName}</span></h1>
+      <Ornament />
+    </div>
+  </header>
+
+  <div class="container container--narrow timeline">
+    {rendered.map(({ c, Content }, i) => (
+      <>
+        <article class:list={['chapter', { 'defer-render': i > 0 }]} id={c.id} aria-labelledby={`${c.id}-title`}>
+          <p class="chapter__period">{c.data.period}</p>
+          <h2 id={`${c.id}-title`} class="chapter__title">{c.data.title}</h2>
+          {c.data.image && (
+            <figure class="chapter__figure">
+              <Picture
+                src={c.data.image}
+                alt={c.data.imageAlt ?? ''}
+                formats={['avif']}
+                fallbackFormat="webp"
+                widths={[360, 560, 760].filter((w) => w <= c.data.image!.width)}
+                sizes="(min-width: 48rem) 46rem, 92vw"
+                quality={58}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+              {c.data.imageCaption && <figcaption>{c.data.imageCaption}</figcaption>}
+            </figure>
+          )}
+          <div class="prose"><Content /></div>
+        </article>
+        {spotAfter[i] !== undefined && <TributeSpotlight pool={pools[spotAfter[i]]} variant="inline" />}
+      </>
+    ))}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-head { padding-bottom: var(--space-m); }
+  .praise { display: block; font-size: var(--step-4); color: var(--copper-bright); }
+  .timeline { padding-bottom: var(--space-xl); }
+  .chapter {
+    position: relative;
+    padding: var(--space-l) 0 var(--space-l) var(--space-m);
+    border-inline-start: 2px solid var(--line);
+  }
+  .chapter::before {
+    content: '';
+    position: absolute;
+    inset-inline-start: -7px;
+    top: calc(var(--space-l) + 0.35em);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 3px var(--ivory);
+  }
+  .chapter__period { color: var(--copper); letter-spacing: 0.12em; text-transform: uppercase; font-size: var(--step--1); }
+  .chapter__title { font-size: var(--step-3); margin-bottom: var(--space-s); }
+  .chapter__figure { margin-block: var(--space-m); }
+  .chapter__figure :global(img) { width: 100%; border-radius: var(--radius); background: var(--paper-deep); box-shadow: var(--shadow); }
+  .chapter__figure figcaption { margin-top: 0.4rem; font-size: var(--step--1); color: var(--ink-soft); }
+</style>

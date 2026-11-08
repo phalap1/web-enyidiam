@@ -1,0 +1,119 @@
+---
+// featured tribute that changes on each visit.
+// the whole pool is rendered, all but one hidden; the script picks one at random.
+// without js the first one stays visible.
+import { Picture } from 'astro:assets';
+import Ornament from './Ornament.astro';
+import { excerpt, type Tribute } from '../lib/tributes';
+import { url } from '../lib/url';
+
+interface Props {
+  pool: Tribute[];
+  variant?: 'band' | 'inline';
+}
+const { pool, variant = 'band' } = Astro.props;
+---
+{pool.length > 0 && (
+<aside class:list={['spot', `spot--${variant}`]} aria-label="A tribute from a well-wisher">
+  <tribute-spotlight>
+    {pool.map((t, i) => (
+      <figure class="spot__item" hidden={i > 0}>
+        <Ornament class="spot__ornament" />
+        <blockquote class="spot__quote">
+          <p>{excerpt(t)}</p>
+        </blockquote>
+        <figcaption class="spot__by">
+          {t.data.photo && (
+            <Picture
+              src={t.data.photo}
+              alt=""
+              formats={['avif']}
+              fallbackFormat="webp"
+              widths={[64, 128]}
+              sizes="64px"
+              quality={60}
+              loading="lazy"
+              decoding="async"
+              class="spot__photo"
+            />
+          )}
+          <span>
+            <cite class="spot__name">{t.data.name}</cite>
+            <span class="spot__relation">{t.data.relation}</span>
+          </span>
+        </figcaption>
+        <a class="spot__more" href={`${url('tributes')}#${t.id}`}>Read the full tribute<span class="visually-hidden"> from {t.data.name}</span> →</a>
+      </figure>
+    ))}
+  </tribute-spotlight>
+</aside>
+)}
+
+<script>
+  class TributeSpotlight extends HTMLElement {
+    connectedCallback() {
+      const items = [...this.children] as HTMLElement[];
+      if (items.length < 2) return;
+      const pick = Math.floor(Math.random() * items.length);
+      items.forEach((el, i) => (el.hidden = i !== pick));
+    }
+  }
+  if (!customElements.get('tribute-spotlight')) customElements.define('tribute-spotlight', TributeSpotlight);
+</script>
+
+<style>
+  tribute-spotlight { display: block; }
+  .spot__item {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-s);
+    text-align: center;
+  }
+  .spot__quote p {
+    font-family: var(--font-head);
+    font-style: italic;
+    font-weight: 500;
+    line-height: 1.3;
+    max-width: 34ch;
+  }
+  .spot__quote p::before { content: '“'; }
+  .spot__quote p::after { content: '”'; }
+  .spot__by {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    text-align: start;
+  }
+  .spot__by :global(.spot__photo) {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold-soft);
+  }
+  .spot__name { display: block; font-style: normal; font-weight: 700; }
+  .spot__relation { display: block; font-size: var(--step--1); opacity: 0.85; }
+  .spot__more { font-size: var(--step--1); letter-spacing: 0.06em; }
+
+  /* band */
+  .spot--band {
+    padding: var(--space-xl) var(--space-m);
+    background:
+      radial-gradient(ellipse at 15% 0%, rgb(185 203 234 / 18%), transparent 55%),
+      radial-gradient(ellipse at 85% 100%, rgb(200 103 58 / 16%), transparent 55%),
+      var(--navy-deep);
+    color: #f4efe6;
+  }
+  .spot--band .spot__quote p { font-size: var(--step-3); color: #fff; }
+  .spot--band .spot__more { color: var(--gold-soft); }
+
+  /* inline */
+  .spot--inline {
+    margin-block: var(--space-l);
+    padding: var(--space-l) var(--space-m);
+    border-block: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--paper), transparent);
+  }
+  .spot--inline .spot__quote p { font-size: var(--step-2); color: var(--navy); }
+  .spot--inline .spot__relation { color: var(--copper); }
+</style>

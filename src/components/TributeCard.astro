@@ -1,0 +1,75 @@
+---
+// full tribute, used on /tributes. no photo -> initials
+import { Picture } from 'astro:assets';
+import { render } from 'astro:content';
+import type { Tribute } from '../lib/tributes';
+
+interface Props { tribute: Tribute }
+const { tribute } = Astro.props;
+const { Content } = await render(tribute);
+const d = tribute.data;
+const initials = d.name.replace(/^(Rev\.|Fr\.|Mrs?\.|Dr\.|Chief|Mazi|Lolo)\s+/gi, '').split(/\s+/).map((w) => w[0]).slice(0, 2).join('');
+---
+<article class="tribute" id={tribute.id} aria-labelledby={`${tribute.id}-name`}>
+  <header class="tribute__head">
+    {d.photo ? (
+      <Picture
+        src={d.photo}
+        alt={d.photoAlt ?? d.name}
+        formats={['avif']}
+        fallbackFormat="webp"
+        widths={[96, 192]}
+        sizes="96px"
+        quality={60}
+        loading="lazy"
+        decoding="async"
+        class="tribute__photo"
+      />
+    ) : (
+      <span class="tribute__monogram" aria-hidden="true">{initials}</span>
+    )}
+    <div>
+      <h3 class="tribute__name" id={`${tribute.id}-name`}>{d.name}</h3>
+      <p class="tribute__relation">{d.relation}{d.location && <> · {d.location}</>}</p>
+    </div>
+  </header>
+  <div class="tribute__body prose"><Content /></div>
+</article>
+
+<style>
+  .tribute {
+    padding: var(--space-m);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fffdf9;
+    box-shadow: var(--shadow);
+    break-inside: avoid;
+  }
+  .tribute__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    margin-bottom: var(--space-s);
+  }
+  .tribute :global(.tribute__photo),
+  .tribute__monogram {
+    flex: none;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold-soft);
+  }
+  .tribute__monogram {
+    display: grid;
+    place-items: center;
+    background: var(--wine);
+    color: #fff;
+    font-family: var(--font-head);
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+  .tribute__name { font-size: var(--step-1); }
+  .tribute__relation { color: var(--copper); font-size: var(--step--1); letter-spacing: 0.04em; }
+  .tribute__body { font-size: var(--step-0); }
+</style>

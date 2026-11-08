@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import { url } from '../lib/url';
+import { person } from '../data/site';
+---
+<BaseLayout title="Offline" description="This page is not available offline yet.">
+  <section class="section">
+    <div class="container container--narrow section-head">
+      <h1>You are offline</h1>
+      <Ornament />
+      <p>This page has not been saved on your phone yet. Pages and photographs you have already opened still work without a connection.</p>
+      <p><a class="button" href={url()}>Back to the home page</a></p>
+      <p class="epitaph">{person.epitaph}</p>
+    </div>
+  </section>
+</BaseLayout>
+<style>
+  .epitaph { margin-top: var(--space-l); font-family: var(--font-head); font-style: italic; font-size: var(--step-1); color: var(--navy); }
+</style>

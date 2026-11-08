@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import TributeCard from '../components/TributeCard.astro';
+import { getTributes } from '../lib/tributes';
+import { contact, person } from '../data/site';
+
+const tributes = await getTributes();
+const waText = encodeURIComponent(`Tribute for ${person.fullName}:\n\nName:\nRelationship to Nne:\nTown:\n\nMy tribute:\n`);
+const mailSubject = encodeURIComponent(`Tribute for ${person.fullName}`);
+---
+<BaseLayout title="Tributes" description={`Tributes to ${person.fullName} from family, friends and well-wishers.`}>
+  <header class="section page-head">
+    <div class="container container--narrow section-head">
+      <p class="eyebrow">{tributes.length} tributes</p>
+      <h1>Words of love and remembrance</h1>
+      <Ornament />
+    </div>
+  </header>
+
+  <div class="container tribute-grid">
+    {tributes.map((t) => <TributeCard tribute={t} />)}
+  </div>
+
+  <section class="section section--paper" id="write" aria-labelledby="write-title">
+    <div class="container container--narrow center">
+      <h2 id="write-title">Write a tribute</h2>
+      <p class="write-copy">
+        Send your tribute (and a clear photograph of yourself, if you would like it shown)
+        by WhatsApp or email. The family will add it to this memorial.
+      </p>
+      <p class="button-row button-row--center">
+        <a class="button" href={`https://wa.me/${contact.whatsapp}?text=${waText}`} target="_blank" rel="noopener">Send by WhatsApp</a>
+        <a class="button button--ghost" href={`mailto:${contact.tributeEmail}?subject=${mailSubject}`}>Send by email</a>
+      </p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .center { text-align: center; }
+  .page-head { padding-bottom: var(--space-m); }
+  .tribute-grid {
+    columns: 22rem;
+    column-gap: var(--space-m);
+    padding-bottom: var(--space-xl);
+  }
+  .tribute-grid > :global(*) { margin-bottom: var(--space-m); }
+  .write-copy { margin-block: var(--space-s) var(--space-m); color: var(--ink-soft); }
+  .button-row--center { justify-content: center; }
+</style>

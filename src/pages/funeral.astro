@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Ornament from '../components/Ornament.astro';
+import FuneralProgramme from '../components/FuneralProgramme.astro';
+import { Picture, getImage } from 'astro:assets';
+import { announcement, mourners, person, signedBy } from '../data/site';
+import posterBlue from '../assets/posters/poster-blue.jpg';
+import posterGold from '../assets/posters/poster-gold.jpg';
+
+const posters = await Promise.all(
+  [
+    { src: posterGold, alt: 'Burial poster with a gold background: Exit of Nne Omereoha, with funeral arrangements' },
+    { src: posterBlue, alt: 'Burial poster with blue hydrangeas: Exit of Nne Omereoha, with funeral arrangements' },
+  ].map(async (p) => ({ ...p, download: (await getImage({ src: p.src, format: 'jpg', quality: 88 })).src })),
+);
+---
+<BaseLayout title="Funeral Arrangements" description={`Funeral arrangements for ${person.fullName}: wake-keeping on Sunday 3rd January 2027 and funeral service on Monday 4th January 2027, Ugwuakuma, Arochukwu.`}>
+  <header class="section page-head">
+    <div class="container container--narrow section-head">
+      <p class="eyebrow">Funeral Arrangements</p>
+      <h1>Laying Nne to rest</h1>
+      <Ornament />
+    </div>
+  </header>
+
+  <div class="container container--narrow">
+    <p class="lead">{announcement}</p>
+    <FuneralProgramme />
+    <p class="mourn"><span class="eyebrow">Left to mourn her are</span><br />{mourners}.</p>
+    <p class="sign">Signed: <strong>{signedBy.name}</strong> ({signedBy.role})</p>
+  </div>
+
+  <section class="section section--paper defer-render" aria-labelledby="posters-title">
+    <div class="container">
+      <header class="section-head">
+        <h2 id="posters-title">Burial posters</h2>
+        <p>Tap a poster to download it and share it with family.</p>
+      </header>
+      <ul class="posters" role="list">
+        {posters.map((p) => (
+          <li>
+            <a href={p.download} download>
+              <Picture
+                src={p.src}
+                alt={p.alt}
+                formats={['avif']}
+                fallbackFormat="webp"
+                widths={[360, 560, 734]}
+                sizes="(min-width: 48rem) 22rem, 90vw"
+                quality={62}
+                loading="lazy"
+                decoding="async"
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .page-head { padding-bottom: var(--space-m); }
+  .lead { font-size: var(--step-1); margin-bottom: var(--space-l); }
+  .mourn, .sign { margin-top: var(--space-l); color: var(--ink-soft); }
+  .sign { margin-bottom: var(--space-xl); }
+  .posters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 22rem));
+    justify-content: center;
+    gap: var(--space-l);
+    padding: 0;
+    list-style: none;
+  }
+  .posters a { display: block; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); background: var(--paper-deep); }
+  .posters :global(img) { width: 100%; }
+</style>
