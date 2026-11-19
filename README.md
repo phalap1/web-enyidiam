@@ -17,12 +17,43 @@ npm run preview
 
 Node 22.12 or newer.
 
+## Family records
+
+`records/family-records.xlsx` holds the family tree, the tributes, story notes
+and open questions for the elders. Open it in Excel, LibreOffice or Google
+Sheets (download as .xlsx when done). The "Start here" sheet explains every
+column. Photos for people and tribute writers go in `records/photos/`.
+
+```bash
+npm run records             # reads the sheet, writes src/data/family.json and the tributes
+npm run records -- --check  # only lists problems
+```
+
+Only tributes marked "Yes" under permission are published. Once the first real
+tribute is imported, the sample tributes (`placeholder: true`) are removed.
+"Lives now", the source columns and private notes are never written out.
+
+The family map is built from `src/data/family.json` (`src/lib/family.ts`
+works out the layout, `src/components/FamilyMap.astro` draws it). It is on the
+story page (opened from `FamilyPreview`) and the funeral page (opened from
+`FamilyPit`, under "Left to mourn her are"); it is not in the menu. Any link to
+`#family` or `#family-P004` on those pages opens it, and leaving it goes back
+to the exact spot on that page. To add it to another page, place
+`<FamilyMap home="id-of-the-opening-card" />` and mark the photo the map should
+open out of with `data-family-origin`.
+
+The "Made by Innova Byte™" line lives in `maker` in `src/data/site.ts`. Keep
+™ until the trade mark is registered; only then switch it to ®.
+
+`notes/story-original.md` keeps the first transcript of her story word for word.
+
 ## Content
 
 - `src/data/site.ts`: names, dates, funeral programme, contact details
 - `src/content/chapters/`: her life story, one markdown file per chapter
-- `src/content/tributes/`: one markdown file per tribute (optional photo in `src/assets/tributes/`)
-- `src/data/gallery.ts`: gallery photos (originals in `src/assets/gallery/`)
+- `src/content/tributes/`: one markdown file per tribute (optional photo in `src/assets/tributes/`);
+  the ones in `records/` are written by `npm run records`, so edit the sheet, not those files
+- `src/data/gallery.ts`: gallery photos (in `src/assets/photos/`, each cropped 4:5 with Mama in the middle so the grid stays even)
 - `src/data/videos.ts`: unlisted YouTube video ids
 
 Example tribute:
@@ -42,8 +73,31 @@ Tribute text here.
 
 `featured: true` puts it in the rotating quotes around the site.
 
-Still to replace: tribute texts, chapter text marked *Placeholder*, the
-"Photograph to come" images, the video ids, and the WhatsApp/email in `site.ts`.
+## Website details
+
+`records/website-details.xlsx` collects everything else the site still needs:
+a "Still needed" checklist, the contact details and website address
+(Details), videos (YouTube links) and photographs. Photo files go in
+`records/photos/`. Then run:
+
+```sh
+npm run details           # check and update the site
+npm run details -- --check
+```
+
+It writes `src/data/details.json` and puts the photos, cropped to the same
+upright shape with camera data removed, in `src/assets/photos/records/`.
+Blank answers are left off the site; until the Videos sheet has links, the
+videos page keeps its empty slots.
+
+The download button in the poster view serves `/burial-poster.jpg`, the
+poster with a thin credit strip added underneath
+(`src/assets/posters/credit-strip.png`).
+
+Still to replace: the sample tributes, the "Still to come" notes in the
+chapters, the video ids (the videos page borrows gallery photos as covers
+until then), and the
+WhatsApp/email in `site.ts`.
 
 ## Deploying
 

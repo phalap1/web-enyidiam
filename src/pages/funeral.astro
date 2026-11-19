@@ -2,19 +2,22 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Ornament from '../components/Ornament.astro';
 import FuneralProgramme from '../components/FuneralProgramme.astro';
+import FamilyPit from '../components/FamilyPit.astro';
+import FamilyMap from '../components/FamilyMap.astro';
 import { Picture, getImage } from 'astro:assets';
-import { announcement, mourners, person, signedBy } from '../data/site';
-import posterBlue from '../assets/posters/poster-blue.jpg';
-import posterGold from '../assets/posters/poster-gold.jpg';
+import { announcement, mourners, person, signedBy, maker, visitorNotes as v } from '../data/site';
+import poster from '../assets/posters/poster-final.jpg';
+import { url } from '../lib/url';
 
 const posters = await Promise.all(
   [
-    { src: posterGold, alt: 'Burial poster with a gold background: Exit of Nne Omereoha, with funeral arrangements' },
-    { src: posterBlue, alt: 'Burial poster with blue hydrangeas: Exit of Nne Omereoha, with funeral arrangements' },
-  ].map(async (p) => ({ ...p, download: (await getImage({ src: p.src, format: 'jpg', quality: 88 })).src })),
+    { src: poster, alt: 'Burial poster: Exit of Nne Omereoha, with her portraits and the funeral arrangements' },
+  ].map(async (p) => ({ ...p, full: (await getImage({ src: p.src, format: 'jpg', quality: 88 })).src })),
 );
+const hasNotes = Object.values(v).some(Boolean);
+const tel = (n: string) => `tel:+${n}`;
 ---
-<BaseLayout title="Funeral Arrangements" description={`Funeral arrangements for ${person.fullName}: wake-keeping on Sunday 3rd January 2027 and funeral service on Monday 4th January 2027, Ugwuakuma, Arochukwu.`}>
+<BaseLayout title="Funeral Arrangements" description={`Funeral arrangements for ${person.fullName}: wake-keeping on Sunday 3rd January 2027 at Obichie Compound, Ugwuakuma, funeral service on Monday 4th January 2027 in Arochukwu, and thanksgiving mass on Sunday 10th January 2027.`}>
   <header class="section page-head">
     <div class="container container--narrow section-head">
       <p class="eyebrow">Funeral Arrangements</p>
@@ -26,20 +29,34 @@ const posters = await Promise.all(
   <div class="container container--narrow">
     <p class="lead">{announcement}</p>
     <FuneralProgramme />
+    {hasNotes && (
+      <aside class="notes" aria-labelledby="notes-title">
+        <h2 id="notes-title" class="eyebrow">For those coming</h2>
+        <dl>
+          {v.dressCode && (<div><dt>Dress</dt><dd>{v.dressCode}</dd></div>)}
+          {v.directions && (<div><dt>Getting there</dt><dd>{v.directions}</dd></div>)}
+          {v.contactName && (
+            <div><dt>Enquiries</dt><dd>{v.contactName}{v.contactPhone && (<>, <a href={tel(v.contactPhone)}>+{v.contactPhone}</a></>)}</dd></div>
+          )}
+        </dl>
+        {v.livestream && <a class="button" href={v.livestream} target="_blank" rel="noopener">Watch the service online</a>}
+      </aside>
+    )}
     <p class="mourn"><span class="eyebrow">Left to mourn her are</span><br />{mourners}.</p>
+    <FamilyPit />
     <p class="sign">Signed: <strong>{signedBy.name}</strong> ({signedBy.role})</p>
   </div>
 
   <section class="section section--paper defer-render" aria-labelledby="posters-title">
     <div class="container">
       <header class="section-head">
-        <h2 id="posters-title">Burial posters</h2>
-        <p>Tap a poster to download it and share it with family.</p>
+        <h2 id="posters-title">Burial poster</h2>
+        <p>Tap the poster to see it in full.</p>
       </header>
       <ul class="posters" role="list">
         {posters.map((p) => (
           <li>
-            <a href={p.download} download>
+            <a href={p.full} data-poster-open aria-haspopup="dialog">
               <Picture
                 src={p.src}
                 alt={p.alt}
@@ -57,11 +74,70 @@ const posters = await Promise.all(
       </ul>
     </div>
   </section>
+
+  <FamilyMap home="family-pit" />
+
+  {posters.map((p) => (
+    <dialog class="viewer" id="poster" aria-label="Burial poster">
+      <button class="viewer__close" type="button" data-poster-close aria-label="Close">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <img src={p.full} alt={p.alt} width={p.src.width} height={p.src.height} loading="lazy" decoding="async" />
+      <div class="viewer__bar">
+        <a class="viewer__save" href={url('burial-poster.jpg')} download="Nne-Omereoha-burial-poster.jpg">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download poster
+        </a>
+        <p class="viewer__mark">{maker.lead} <span>{maker.name}<sup>{maker.mark}</sup></span></p>
+      </div>
+    </dialog>
+  ))}
 </BaseLayout>
+
+<script>
+  // Open the poster in a plain full-screen view. Back, Esc, the cross or a tap
+  // outside the poster all close it.
+  const viewer = document.querySelector<HTMLDialogElement>('#poster');
+  const opener = document.querySelector<HTMLAnchorElement>('[data-poster-open]');
+  if (viewer && opener) {
+    const close = () => { if (viewer.open) viewer.close(); };
+    opener.addEventListener('click', (e) => {
+      e.preventDefault();
+      viewer.showModal();
+      document.documentElement.classList.add('viewer-open');
+      history.pushState({ poster: true }, '', '#poster');
+    });
+    viewer.addEventListener('close', () => {
+      document.documentElement.classList.remove('viewer-open');
+      if (history.state?.poster) history.back();
+      opener.focus({ preventScroll: true });
+    });
+    viewer.addEventListener('click', (e) => { if (e.target === viewer) close(); });
+    viewer.querySelector('[data-poster-close]')?.addEventListener('click', close);
+    addEventListener('popstate', close);
+    // landing on /funeral/#poster from a shared link
+    if (location.hash === '#poster') history.replaceState(null, '', location.pathname);
+  }
+</script>
 
 <style>
   .page-head { padding-bottom: var(--space-m); }
   .lead { font-size: var(--step-1); margin-bottom: var(--space-l); }
+  .notes {
+    display: grid;
+    gap: var(--space-s);
+    justify-items: start;
+    margin-top: var(--space-l);
+    padding: var(--space-m);
+    border: 1px solid rgb(123 74 43 / 25%);
+    border-radius: var(--radius);
+    background: var(--paper);
+  }
+  .notes dl { display: grid; gap: var(--space-xs); margin: 0; }
+  .notes dl div { display: grid; grid-template-columns: minmax(7.5rem, auto) 1fr; gap: var(--space-s); }
+  @media (max-width: 30rem) { .notes dl div { grid-template-columns: 1fr; gap: 0; } }
+  .notes dt { font-weight: 600; color: var(--navy-deep); }
+  .notes dd { margin: 0; }
   .mourn, .sign { margin-top: var(--space-l); color: var(--ink-soft); }
   .sign { margin-bottom: var(--space-xl); }
   .posters {
@@ -74,4 +150,75 @@ const posters = await Promise.all(
   }
   .posters a { display: block; border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); background: var(--paper-deep); }
   .posters :global(img) { width: 100%; }
+  .posters a { cursor: zoom-in; }
+
+  .viewer {
+    max-width: none;
+    max-height: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: max(var(--space-m), env(safe-area-inset-top)) var(--space-s) var(--space-s);
+    border: 0;
+    background: transparent;
+    color: #e9e3d6;
+  }
+  .viewer[open] { display: grid; grid-template-rows: 1fr auto; justify-items: center; align-items: center; gap: var(--space-xs); }
+  .viewer::backdrop { background: #12161f; }
+  .viewer img {
+    max-width: min(100%, 734px);
+    max-height: calc(100dvh - 7rem);
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 10px 40px rgb(0 0 0 / 45%);
+  }
+  .viewer__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-s);
+    width: min(100%, 734px);
+  }
+  .viewer__save {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 44px;
+    padding: 0 1.1rem;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 12%);
+    color: #fff;
+    font-size: var(--step--1);
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+  .viewer__save:hover { background: rgb(255 255 255 / 22%); color: #fff; }
+  .viewer__save:focus-visible { outline: 2px solid #d9bd7c; outline-offset: 3px; }
+  .viewer__mark {
+    margin-left: auto;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: rgb(233 227 214 / 50%);
+  }
+  .viewer__mark span { font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #d9bd7c; }
+  .viewer__mark sup { font-size: 0.7em; margin-left: 0.1em; }
+  .viewer__close {
+    position: fixed;
+    top: max(0.6rem, env(safe-area-inset-top));
+    right: 0.6rem;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 12%);
+    color: #fff;
+    cursor: pointer;
+  }
+  .viewer__close:hover { background: rgb(255 255 255 / 22%); }
+  :global(html.viewer-open) { overflow: hidden; }
 </style>

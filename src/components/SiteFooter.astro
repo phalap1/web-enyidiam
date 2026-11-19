@@ -1,6 +1,6 @@
 ---
 import Ornament from './Ornament.astro';
-import { person, signedBy } from '../data/site';
+import { person, signedBy, maker } from '../data/site';
 import { url } from '../lib/url';
 ---
 <footer class="site-footer">
@@ -13,13 +13,16 @@ import { url } from '../lib/url';
       · <a href={url('funeral.ics')}>Add funeral dates to calendar</a>
     </p>
   </div>
+  <div class="container site-footer__base">
+    <p class="maker">{maker.lead} <span class="maker__name">{maker.name}<sup>{maker.mark}</sup></span></p>
+  </div>
 </footer>
 
 <style>
   .site-footer {
     background: var(--navy-deep);
     color: #e9e3d6;
-    padding-block: var(--space-l);
+    padding-block: var(--space-l) var(--space-s);
     text-align: center;
   }
   .site-footer__inner { display: grid; gap: var(--space-s); justify-items: center; }
@@ -33,4 +36,30 @@ import { url } from '../lib/url';
   }
   .site-footer__sign, .site-footer__meta { font-size: var(--step--1); }
   .site-footer a { color: var(--gold-soft); }
+  .site-footer__base {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--space-m);
+    padding-top: var(--space-xs);
+    border-top: 1px solid rgb(233 227 214 / 12%);
+  }
+  .maker {
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: rgb(233 227 214 / 55%);
+  }
+  .maker__name {
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    /* soft gold sheen that drifts across on hover */
+    background: linear-gradient(100deg, #c9a75f 0%, #f1dfae 45%, #c9a75f 60%, #b08d47 100%) 0 0 / 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    transition: background-position 1.2s ease;
+  }
+  .maker:hover .maker__name { background-position: 100% 0; }
+  .maker sup { font-size: 0.7em; margin-left: 0.1em; }
+  @media (prefers-reduced-motion: reduce) { .maker__name { transition: none; } }
 </style>

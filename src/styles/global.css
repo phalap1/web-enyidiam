@@ -1,21 +1,21 @@
-/* colours from the burial posters */
+/* colours: the blue of her head-tie, the browns and gold of the final poster */
 
 :root {
   color-scheme: light;
 
-  --ivory: #fbf7f0;
-  --paper: #f3eadb;
-  --paper-deep: #ead9bf;
-  --ink: #1d2740;        /* body text, 13.9:1 */
-  --ink-soft: #4a5268;   /* secondary text, 7.6:1 */
-  --navy: #23407c;       /* headings, 9.2:1 */
-  --navy-deep: #172c57;
-  --copper: #a54e27;     /* accents & links, 5.4:1 */
-  --copper-bright: #c8673a; /* decorative only */
+  --ivory: #faf6ef;
+  --paper: #f2e9dc;
+  --paper-deep: #e7d8c1;
+  --ink: #1f2838;        /* body text, 14:1 */
+  --ink-soft: #4b4f5c;   /* secondary text, 7.6:1 */
+  --navy: #234b8a;       /* headings, from her blue head-tie, 8:1 */
+  --navy-deep: #18315c;
+  --brown: #7b4a2b;      /* links & small caps, 6.8:1 */
+  --brown-soft: #a26a40; /* large lettering & decoration */
   --gold: #c39a45;       /* decorative only */
   --gold-soft: #e6cf98;
-  --wine: #7a1e28;
-  --hydrangea: #b9cbea;
+  --wine: #7a1e28;       /* the "aged 78" badge */
+  --hydrangea: #c3d3ec;
   --line: color-mix(in srgb, var(--gold) 45%, transparent);
 
   /* body uses the system serif, no download */
@@ -23,8 +23,8 @@
   --font-head: var(--font-display, 'Cormorant Garamond'), Georgia, serif;
   --font-flourish: var(--font-script, 'Pinyon Script'), var(--font-head);
 
-  --step--1: clamp(0.86rem, 0.83rem + 0.15vw, 0.95rem);
-  --step-0: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+  --step--1: clamp(0.95rem, 0.92rem + 0.15vw, 1.02rem);
+  --step-0: clamp(1.125rem, 1.07rem + 0.25vw, 1.25rem);
   --step-1: clamp(1.3rem, 1.2rem + 0.5vw, 1.6rem);
   --step-2: clamp(1.6rem, 1.4rem + 1vw, 2.25rem);
   --step-3: clamp(2rem, 1.6rem + 2vw, 3.25rem);
@@ -54,7 +54,7 @@ body {
   color: var(--ink);
   font-family: var(--font-body);
   font-size: var(--step-0);
-  line-height: 1.65;
+  line-height: 1.7;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -77,11 +77,11 @@ h2 { font-size: var(--step-3); }
 h3 { font-size: var(--step-2); }
 
 a {
-  color: var(--copper);
+  color: var(--brown);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
-a:hover { color: var(--wine); }
+a:hover { color: var(--navy-deep); }
 
 .prose { max-width: var(--measure); }
 .prose > * + * { margin-top: 1em; }
@@ -92,14 +92,14 @@ a:hover { color: var(--wine); }
   font-size: var(--step--1);
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--copper);
+  color: var(--brown);
 }
 
 .script {
   font-family: var(--font-flourish);
   font-weight: 400;
   font-style: normal;
-  color: var(--copper-bright);
+  color: var(--brown-soft);
 }
 .script { font-synthesis: none; }
 
@@ -117,7 +117,7 @@ a:hover { color: var(--wine); }
 .skip-link:focus { top: var(--space-s); color: #fff; }
 
 :focus-visible {
-  outline: 3px solid var(--copper);
+  outline: 3px solid var(--brown);
   outline-offset: 3px;
   border-radius: 2px;
 }

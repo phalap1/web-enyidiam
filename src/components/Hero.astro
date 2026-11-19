@@ -1,9 +1,24 @@
 ---
 // homepage hero, lettering follows the burial poster
-import { Picture } from 'astro:assets';
+import { Picture, getImage } from 'astro:assets';
 import Ornament from './Ornament.astro';
 import { person } from '../data/site';
-import { portraits } from '../data/gallery';
+import { heroPortraits } from '../data/gallery';
+
+const [first, ...rest] = heroPortraits;
+const WIDTHS = [320, 480, 640, 832];
+const SIZES = '(min-width: 56rem) 26rem, 72vw';
+// the other portraits load only after the page has finished loading
+const later = await Promise.all(
+  rest.map(async (p) => {
+    const set = async (format: 'avif' | 'webp') =>
+      (await Promise.all(WIDTHS.filter((w) => w <= p.src.width).map(async (w) => {
+        const img = await getImage({ src: p.src, width: w, format, quality: 62 });
+        return `${img.src} ${w}w`;
+      }))).join(', ');
+    return { avif: await set('avif'), webp: await set('webp') };
+  }),
+);
 ---
 <section class="hero" aria-labelledby="hero-name">
   <div class="container hero__grid">
@@ -27,20 +42,28 @@ import { portraits } from '../data/gallery';
       </p>
     </div>
 
-    <div class="hero__portrait">
-      <Picture
-        src={portraits.redGele}
-        alt={`${person.fullName} smiling in a red and gold head-tie and coral beads`}
-        formats={['avif']}
-        fallbackFormat="webp"
-        widths={[280, 434]}
-        sizes="(min-width: 56rem) 26rem, 72vw"
-        quality={62}
-        loading="eager"
-        fetchpriority="high"
-        decoding="async"
-        class="hero__img"
-      />
+    <div class="hero__frame">
+      <div class="hero__portrait" role="img" aria-label={`Portraits of ${person.fullName}`} data-fade>
+        <Picture
+          src={first.src}
+          alt=""
+          formats={['avif']}
+          fallbackFormat="webp"
+          widths={WIDTHS}
+          sizes={SIZES}
+          quality={62}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          class="hero__img is-on"
+        />
+        {later.map((l) => (
+          <picture>
+            <source type="image/avif" data-srcset={l.avif} sizes={SIZES} />
+            <img class="hero__img" data-srcset={l.webp} sizes={SIZES} alt="" decoding="async" />
+          </picture>
+        ))}
+      </div>
     </div>
   </div>
 </section>
@@ -51,8 +74,8 @@ import { portraits } from '../data/gallery';
     padding-block: var(--space-l) var(--space-xl);
     overflow: hidden;
     background:
-      radial-gradient(ellipse 60% 50% at 100% 0%, rgb(185 203 234 / 55%), transparent 70%),
-      radial-gradient(ellipse 50% 45% at 0% 100%, rgb(230 207 152 / 45%), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 100% 0%, rgb(195 211 236 / 60%), transparent 70%),
+      radial-gradient(ellipse 55% 45% at 0% 100%, rgb(214 184 150 / 45%), transparent 70%),
       var(--ivory);
   }
   .hero__grid {
@@ -131,15 +154,63 @@ import { portraits } from '../data/gallery';
     color: var(--gold-soft);
   }
 
+  .hero__frame { justify-self: center; }
   .hero__portrait {
-    justify-self: center;
     width: min(26rem, 72vw);
-    aspect-ratio: 434 / 535;
+    aspect-ratio: 4 / 5;
     border-radius: 999px 999px var(--radius) var(--radius);
     overflow: hidden;
     background: var(--paper-deep);
     box-shadow: 0 0 0 6px var(--ivory), 0 0 0 7px var(--gold), var(--shadow);
   }
-  .hero__portrait :global(picture),
-  .hero__portrait :global(.hero__img) { width: 100%; height: 100%; object-fit: cover; }
+  .hero__portrait { position: relative; }
+  .hero__portrait :global(picture) { position: absolute; inset: 0; }
+  .hero__portrait :global(.hero__img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 30%;
+    opacity: 0;
+    transition: opacity 1.8s ease-in-out;
+  }
+  .hero__portrait :global(.hero__img.is-on) { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .hero__portrait :global(.hero__img) { transition: none; } }
 </style>
+
+<script>
+  // Fade gently between her portraits in a random order. The first portrait is
+  // the only one loaded up front; the rest wait until the page has loaded.
+  const frame = document.querySelector<HTMLElement>('[data-fade]');
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  if (frame && !still.matches) {
+    const start = () => {
+      const imgs = [...frame.querySelectorAll<HTMLImageElement>('img')];
+      const [, ...others] = imgs;
+      frame.querySelectorAll<HTMLElement>('[data-srcset]').forEach((el) => {
+        el.setAttribute('srcset', el.dataset.srcset!);
+        el.removeAttribute('data-srcset');
+      });
+      const ready = (i: HTMLImageElement) => i.complete && i.naturalWidth > 0;
+      let current = imgs[0];
+      let queue: HTMLImageElement[] = [];
+      const next = () => {
+        if (!queue.length) {
+          // shuffle, never repeating the one on screen
+          queue = imgs.filter((i) => i !== current).sort(() => Math.random() - 0.5);
+        }
+        return queue.shift()!;
+      };
+      setInterval(() => {
+        if (document.hidden) return;
+        const n = next();
+        if (!ready(n)) { queue.push(n); return; } // still downloading on a slow line
+        n.classList.add('is-on');
+        current.classList.remove('is-on');
+        current = n;
+      }, 7000);
+      others.forEach((i) => i.decode?.().catch(() => {}));
+    };
+    if (document.readyState === 'complete') start();
+    else addEventListener('load', start, { once: true });
+  }
+</script>

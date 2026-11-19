@@ -3,6 +3,7 @@
 import { Picture } from 'astro:assets';
 import { render } from 'astro:content';
 import type { Tribute } from '../lib/tributes';
+import { url } from '../lib/url';
 
 interface Props { tribute: Tribute }
 const { tribute } = Astro.props;
@@ -34,6 +35,7 @@ const initials = d.name.replace(/^(Rev\.|Fr\.|Mrs?\.|Dr\.|Chief|Mazi|Lolo)\s+/gi
     </div>
   </header>
   <div class="tribute__body prose"><Content /></div>
+  {d.personId && <p class="tribute__map"><a href={`${url('her-story')}#family-${d.personId}`}>Find {d.name.split(' ')[0]} on the family map</a></p>}
 </article>
 
 <style>
@@ -70,6 +72,7 @@ const initials = d.name.replace(/^(Rev\.|Fr\.|Mrs?\.|Dr\.|Chief|Mazi|Lolo)\s+/gi
     font-weight: 600;
   }
   .tribute__name { font-size: var(--step-1); }
-  .tribute__relation { color: var(--copper); font-size: var(--step--1); letter-spacing: 0.04em; }
+  .tribute__map { margin-top: var(--space-s); font-size: var(--step--1); }
+  .tribute__relation { color: var(--brown); font-size: var(--step--1); letter-spacing: 0.04em; }
   .tribute__body { font-size: var(--step-0); }
 </style>

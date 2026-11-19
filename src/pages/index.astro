@@ -9,14 +9,14 @@ import ImageGallery from '../components/ImageGallery.astro';
 import YouTubeEmbed from '../components/YouTubeEmbed.astro';
 import { getCollection } from 'astro:content';
 import { announcement, mourners } from '../data/site';
-import { photos } from '../data/gallery';
+import { homePhotos } from '../data/gallery';
 import { videos } from '../data/videos';
 import { spotlightPools } from '../lib/tributes';
 import { url } from '../lib/url';
 
 const chapters = (await getCollection('chapters')).sort((a, b) => a.data.order - b.data.order);
 const [poolA, poolB, poolC] = await spotlightPools(3);
-const previewPhotos = photos.slice(-6).reverse();
+const previewPhotos = homePhotos;
 const featuredVideo = videos[0];
 ---
 <BaseLayout>
@@ -34,7 +34,7 @@ const featuredVideo = videos[0];
     <div class="container container--narrow">
       <header class="section-head">
         <p class="eyebrow">Her Story</p>
-        <h2 id="story-title">A life of faith, family and open doors</h2>
+        <h2 id="story-title">Her life, as the family tells it</h2>
         <Ornament />
       </header>
       <ol class="story-teaser" role="list">
@@ -85,7 +85,7 @@ const featuredVideo = videos[0];
       <div class="container container--narrow">
         <header class="section-head">
           <p class="eyebrow">In Motion</p>
-          <h2 id="video-title">Her voice, her laughter</h2>
+          <h2 id="video-title">Remembering Mama</h2>
           <Ornament />
         </header>
         <YouTubeEmbed {...featuredVideo} />
@@ -144,6 +144,6 @@ const featuredVideo = videos[0];
   }
   .story-teaser a:hover { background: var(--paper-deep); }
   @media (max-width: 30rem) { .story-teaser a { grid-template-columns: 1fr; gap: 0; } }
-  .story-teaser__period { color: var(--copper); font-size: var(--step--1); letter-spacing: 0.06em; }
+  .story-teaser__period { color: var(--brown); font-size: var(--step--1); letter-spacing: 0.06em; }
   .story-teaser__title { font-family: var(--font-head); font-weight: 600; font-size: var(--step-1); color: var(--navy); }
 </style>

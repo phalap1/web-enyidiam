@@ -15,6 +15,10 @@ const tributes = defineCollection({
       pullQuote: z.string().max(240).optional(),
       featured: z.boolean().default(false),
       order: z.number().default(100),
+      // their place on the family map, if they are on it
+      personId: z.string().optional(),
+      // sample tributes, removed by `npm run records` once real ones exist
+      placeholder: z.boolean().default(false),
     }),
 });
 

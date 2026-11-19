@@ -1,0 +1,73 @@
+---
+// Small way into the family map, placed under "Left to mourn her are" on the
+// funeral page. Same map, same way out as on the story page.
+import { Picture } from 'astro:assets';
+import { byId, childrenOf, people, photoOf, ROOT } from '../lib/family';
+
+const mama = byId.get(ROOT)!;
+const photo = photoOf(mama);
+const kids = childrenOf(ROOT).length;
+---
+<div class="pit" id="family-pit">
+  <span class="pit__pin" data-family-origin>
+    {photo && <Picture src={photo} alt="" formats={['avif']} fallbackFormat="webp" widths={[128]} sizes="64px" quality={70} loading="lazy" decoding="async" />}
+  </span>
+  <span class="pit__text">
+    <span class="pit__title">Who&rsquo;s who in her family</span>
+    <span class="pit__sub">Her {kids} children, their families, her people and her husband&rsquo;s people, {people.length} so far.</span>
+  </span>
+  <a class="pit__open" href="#family" data-family-open>
+    Open the family map
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+</div>
+
+<style>
+  .pit {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.4rem var(--space-s);
+    margin-top: var(--space-s);
+    padding: var(--space-s) var(--space-m) var(--space-s) var(--space-s);
+    border: 1px solid rgb(123 74 43 / 30%);
+    border-radius: 0.9rem;
+    background:
+      repeating-radial-gradient(ellipse at 2.5rem 50%, transparent 0 22px, rgb(123 74 43 / 7%) 22px 23px),
+      #f5ecdc;
+    box-shadow: inset 0 0 0 4px #f5ecdc, inset 0 0 0 5px rgb(162 106 64 / 30%);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .pit:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 4px #f5ecdc, inset 0 0 0 5px rgb(162 106 64 / 30%), var(--shadow); }
+  .pit:has(.pit__open:focus-visible) { outline: 3px solid var(--brown); outline-offset: 4px; }
+  .pit__pin {
+    grid-row: span 2;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ivory);
+    box-shadow: 0 0 0 3px #f5ecdc, 0 0 0 5px var(--navy), 0 3px 10px rgb(0 0 0 / 18%);
+  }
+  .pit__pin :global(picture), .pit__pin :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .pit__text { display: grid; gap: 0.15rem; }
+  .pit__title { font: 600 var(--step-1)/1.2 var(--font-head); color: var(--navy-deep); }
+  .pit__sub { font-size: var(--step--1); color: var(--ink-soft); line-height: 1.45; }
+  .pit__open {
+    grid-column: 2;
+    justify-self: start;
+    font-size: var(--step--1);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 40px;
+    color: var(--brown);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  /* the whole card is the link */
+  .pit__open::after { content: ''; position: absolute; inset: 0; border-radius: 0.9rem; }
+  @media (prefers-reduced-motion: reduce) { .pit, .pit:hover { transition: none; transform: none; } }
+</style>

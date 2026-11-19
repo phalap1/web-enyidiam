@@ -3,7 +3,10 @@ import { defineConfig, fontProviders } from 'astro/config';
 import serviceWorker from './integrations/service-worker.mjs';
 
 // github pages: SITE_URL=https://<user>.github.io BASE_PATH=/<repo>/ (set in the workflow)
-const SITE = process.env.SITE_URL ?? 'https://enyidia-nwosu.pages.dev';
+import { readFileSync } from 'node:fs';
+// the address from records/website-details.xlsx, unless the build sets SITE_URL
+const fromRecords = JSON.parse(readFileSync(new URL('./src/data/details.json', import.meta.url), 'utf8')).details?.site_url;
+const SITE = process.env.SITE_URL ?? fromRecords ?? 'https://enyidia-nwosu.pages.dev';
 const BASE = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({

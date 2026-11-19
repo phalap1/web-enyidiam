@@ -1,7 +1,6 @@
 import type { ImageMetadata } from 'astro';
-import wedding from '../assets/gallery/wedding-day.jpg';
-import church from '../assets/gallery/church-women.jpg';
-import birthday from '../assets/gallery/seventy-fifth.jpg';
+import { portraits } from './gallery';
+import records from './details.json';
 
 export interface Video {
   id: string;
@@ -12,27 +11,34 @@ export interface Video {
   poster?: ImageMetadata;
 }
 
-// TODO: real video ids
-export const videos: Video[] = [
+// empty slots, used until the Videos sheet has real links
+const slots: Video[] = [
   {
     id: 'PLACEHOLDR1',
-    title: 'Nne at her 75th birthday thanksgiving',
-    description: 'Dancing with her grandchildren after Mass, 2023.',
-    duration: '6:40',
-    poster: birthday,
+    title: 'Video to come (1)',
+    poster: portraits.whiteLace,
   },
   {
     id: 'PLACEHOLDR2',
-    title: 'Singing with the Catholic Women Organisation',
-    description: 'Her favourite Igbo hymn at SS Peter & Paul.',
-    duration: '3:15',
-    poster: church,
+    title: 'Video to come (2)',
+    poster: portraits.seatedYellow,
   },
   {
     id: 'PLACEHOLDR3',
-    title: 'Memories: a family slideshow',
-    description: 'Photographs from seven decades, set to music.',
-    duration: '9:02',
-    poster: wedding,
+    title: 'Video to come (3)',
+    poster: portraits.redGele,
   },
 ];
+
+const covers = import.meta.glob<{ default: ImageMetadata }>('../assets/photos/records/*.jpg', { eager: true });
+const cover = (file?: string) => (file ? covers[`../assets/photos/records/${file}`]?.default : undefined);
+const fallback = [portraits.whiteLace, portraits.seatedYellow, portraits.redGele, portraits.pinkLace];
+
+export const videos: Video[] = records.videos.length
+  ? (records.videos as { id: string; title: string; description?: string; when?: string; cover?: string }[]).map((v, i) => ({
+      id: v.id,
+      title: v.title,
+      description: [v.description, v.when].filter(Boolean).join(' · ') || undefined,
+      poster: cover(v.cover) ?? fallback[i % fallback.length],
+    }))
+  : slots;

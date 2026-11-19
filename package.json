@@ -7,12 +7,17 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "records": "node scripts/records.mjs",
+    "details": "node scripts/details.mjs"
   },
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/pinyon-script": "^5.3.0",
     "astro": "^7.4.7",
     "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "exceljs": "4.4.0"
   }
 }

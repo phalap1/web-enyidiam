@@ -2,6 +2,8 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Ornament from '../components/Ornament.astro';
 import TributeSpotlight from '../components/TributeSpotlight.astro';
+import FamilyPreview from '../components/FamilyPreview.astro';
+import FamilyMap from '../components/FamilyMap.astro';
 import { Picture } from 'astro:assets';
 import { getCollection, render } from 'astro:content';
 import { person } from '../data/site';
@@ -18,6 +20,7 @@ const spotAfter: Record<number, number> = { 1: 0, 3: 1 };
       <p class="eyebrow">{person.born} – {person.died}</p>
       <h1>The story of <span class="script praise">{person.praiseName}</span></h1>
       <Ornament />
+      <p class="to-map"><a href="#family-preview">See her family map</a></p>
     </div>
   </header>
 
@@ -34,8 +37,8 @@ const spotAfter: Record<number, number> = { 1: 0, 3: 1 };
                 alt={c.data.imageAlt ?? ''}
                 formats={['avif']}
                 fallbackFormat="webp"
-                widths={[360, 560, 760].filter((w) => w <= c.data.image!.width)}
-                sizes="(min-width: 48rem) 46rem, 92vw"
+                widths={[...new Set([360, 560, 704].map((w) => Math.min(w, c.data.image!.width)))]}
+                sizes="(min-width: 30rem) 22rem, 80vw"
                 quality={58}
                 loading={i === 0 ? 'eager' : 'lazy'}
                 decoding="async"
@@ -48,13 +51,16 @@ const spotAfter: Record<number, number> = { 1: 0, 3: 1 };
         {spotAfter[i] !== undefined && <TributeSpotlight pool={pools[spotAfter[i]]} variant="inline" />}
       </>
     ))}
+    <FamilyPreview />
   </div>
+  <FamilyMap />
 </BaseLayout>
 
 <style>
   .page-head { padding-bottom: var(--space-m); }
-  .praise { display: block; font-size: var(--step-4); color: var(--copper-bright); }
-  .timeline { padding-bottom: var(--space-xl); }
+  .praise { display: block; font-size: var(--step-4); color: var(--brown-soft); }
+  .timeline { padding-bottom: var(--space-m); }
+  .to-map { font-size: var(--step--1); }
   .chapter {
     position: relative;
     padding: var(--space-l) 0 var(--space-l) var(--space-m);
@@ -71,9 +77,9 @@ const spotAfter: Record<number, number> = { 1: 0, 3: 1 };
     background: var(--gold);
     box-shadow: 0 0 0 3px var(--ivory);
   }
-  .chapter__period { color: var(--copper); letter-spacing: 0.12em; text-transform: uppercase; font-size: var(--step--1); }
+  .chapter__period { color: var(--brown); letter-spacing: 0.12em; text-transform: uppercase; font-size: var(--step--1); }
   .chapter__title { font-size: var(--step-3); margin-bottom: var(--space-s); }
-  .chapter__figure { margin-block: var(--space-m); }
-  .chapter__figure :global(img) { width: 100%; border-radius: var(--radius); background: var(--paper-deep); box-shadow: var(--shadow); }
-  .chapter__figure figcaption { margin-top: 0.4rem; font-size: var(--step--1); color: var(--ink-soft); }
+  .chapter__figure { width: min(22rem, 80%); margin: var(--space-m) auto; text-align: center; }
+  .chapter__figure :global(img) { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; object-position: 50% 35%; border-radius: var(--radius); background: var(--paper-deep); box-shadow: 0 0 0 5px var(--ivory), 0 0 0 6px rgb(162 106 64 / 45%), var(--shadow); }
+  .chapter__figure figcaption { margin-top: 0.7rem; font-size: var(--step--1); font-style: italic; color: var(--ink-soft); }
 </style>

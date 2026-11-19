@@ -1,0 +1,144 @@
+---
+// The part of the family map shown on the story page: Mama and her children.
+// Tapping it falls into the full map (FamilyMap.astro).
+import { Picture } from 'astro:assets';
+import { byId, childrenOf, photoOf, displayName, fullName, initials, years, ROOT } from '../lib/family';
+
+const mama = byId.get(ROOT)!;
+const kids = childrenOf(ROOT);
+const photo = photoOf(mama);
+---
+<section class="fp" id="family-preview" aria-labelledby="fp-title">
+  <div class="fp-card">
+    <svg class="fp-contours" viewBox="0 0 400 300" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <ellipse cx="200" cy="58" rx={60 + i * 48} ry={34 + i * 30} />
+      ))}
+    </svg>
+
+    <header class="fp-head">
+      <p class="eyebrow">Family map</p>
+      <h2 id="fp-title">Mama and her children</h2>
+    </header>
+
+    <div class="fp-root">
+      <span class="fp-pin" data-family-origin>
+        {photo ? (
+          <Picture src={photo} alt="" formats={['avif']} fallbackFormat="webp" widths={[168]} sizes="84px" quality={70} loading="lazy" decoding="async" />
+        ) : (
+          <span>{initials(mama)}</span>
+        )}
+      </span>
+      <span class="fp-root__name">{fullName(mama)}</span>
+      {years(mama) && <span class="fp-root__years">{years(mama)}</span>}
+    </div>
+
+    <ul class="fp-kids" role="list">
+      {kids.map((k) => (
+        <li class:list={['fp-kid', { 'fp-kid--pending': k.pending, 'fp-kid--adopted': k.childOf }]}>
+          <span class="fp-kid__pin" aria-hidden="true">{initials(k) || '·'}</span>
+          <span class="fp-kid__name">{displayName(k)}</span>
+          {k.childOf && <span class="fp-kid__tag">{k.childOf.toLowerCase()}</span>}
+        </li>
+      ))}
+    </ul>
+
+    <p class="fp-lead">Her parents, her husband&rsquo;s people, the grandchildren and everyone else are on the full map.</p>
+    <a class="button fp-open" href="#family" data-family-open>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Open the family map
+    </a>
+  </div>
+</section>
+
+<style>
+  .fp { padding-block: var(--space-l) var(--space-xl); }
+  .fp-card {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    justify-items: center;
+    gap: var(--space-s);
+    padding: var(--space-l) var(--space-m);
+    border: 1px solid rgb(123 74 43 / 30%);
+    border-radius: 1rem;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 20%, transparent 50%, rgb(123 74 43 / 10%)),
+      #f5ecdc;
+    box-shadow: inset 0 0 0 6px #f5ecdc, inset 0 0 0 7px rgb(162 106 64 / 35%), var(--shadow);
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .fp-card:hover { transform: translateY(-2px); }
+  .fp-card:has(.fp-open:focus-visible) { outline: 3px solid var(--brown); outline-offset: 4px; }
+  .fp-contours { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .fp-contours ellipse { fill: none; stroke: var(--brown); stroke-opacity: 0.12; stroke-width: 1; }
+
+  .fp-head { position: relative; display: grid; gap: 0.2rem; }
+  .fp-head h2 { font-size: var(--step-2); }
+
+  .fp-root { position: relative; display: grid; justify-items: center; gap: 0.35rem; }
+  .fp-pin {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ivory);
+    box-shadow: 0 0 0 4px #f5ecdc, 0 0 0 7px var(--navy), 0 4px 14px rgb(0 0 0 / 22%);
+  }
+  .fp-pin :global(picture), .fp-pin :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .fp-root__name {
+    padding: 0.3rem 0.9rem;
+    border-radius: 0.4rem;
+    background: var(--navy-deep);
+    color: #fff;
+    font: 600 var(--step-1) var(--font-head);
+    line-height: 1.2;
+  }
+  .fp-root__years { color: var(--brown); font-size: var(--step--1); }
+
+  /* dashed "roads" from Mama down to the children */
+  .fp-kids {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(7.25rem, 40%), 1fr));
+    gap: var(--space-s);
+    width: 100%;
+    margin-top: var(--space-s);
+    padding: var(--space-m) 0 0;
+    list-style: none;
+    border-top: 2px dashed rgb(123 74 43 / 45%);
+  }
+  .fp-kids::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: calc(-1 * var(--space-s) - 2px);
+    height: var(--space-s);
+    border-left: 2px dashed rgb(123 74 43 / 45%);
+  }
+  .fp-kid { display: grid; justify-items: center; gap: 0.3rem; }
+  .fp-kid__pin {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--ivory);
+    box-shadow: 0 0 0 3px #f5ecdc, 0 0 0 5px var(--brown-soft);
+    font: 600 0.95rem var(--font-head);
+    color: var(--brown);
+  }
+  .fp-kid__name { font: 600 1.05rem/1.2 var(--font-head); color: var(--navy-deep); }
+  .fp-kid--pending .fp-kid__name { font-style: italic; font-weight: 500; color: var(--ink-soft); }
+  .fp-kid--pending .fp-kid__pin { background: var(--paper); }
+  .fp-kid__tag { font-size: 0.82rem; color: var(--brown); font-style: italic; }
+
+  .fp-lead { position: relative; max-width: 34ch; color: var(--ink-soft); margin-top: var(--space-s); }
+  .fp-open { position: static; }
+  /* the whole card is the link */
+  .fp-open::after { content: ''; position: absolute; inset: 0; border-radius: 1rem; }
+</style>

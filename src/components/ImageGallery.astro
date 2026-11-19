@@ -40,7 +40,7 @@ const items = await Promise.all(
         Save photos for offline viewing
       </button>
       <p class="gallery__offline-status" role="status" aria-live="polite" data-offline-status>
-        About {items.length} photos. Uses mobile data once, then works without a connection.
+        {items.length} photos. Uses mobile data once, then works without a connection.
       </p>
     </div>
   )}
@@ -162,6 +162,8 @@ const items = await Promise.all(
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     gap: var(--space-s);
     margin-bottom: var(--space-m);
   }
@@ -172,23 +174,19 @@ const items = await Promise.all(
     list-style: none;
   }
 
-  /* masonry with columns */
-  .gallery--grid .gallery__list {
-    columns: 16rem;
-    column-gap: var(--space-m);
+  /* even 4:5 tiles, centred, Mama in the middle of every frame */
+  .gallery__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center; /* a short last row stays in the middle */
+    gap: var(--space-m);
   }
-  .gallery--grid .gallery__item {
-    break-inside: avoid;
-    margin-bottom: var(--space-m);
-  }
-
-  .gallery--preview .gallery__list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
-    gap: var(--space-s);
-  }
-  .gallery--preview .gallery__link { aspect-ratio: 4 / 5; }
-  .gallery--preview :global(.gallery__img) { height: 100%; object-fit: cover; }
+  .gallery__item { flex: 0 1 16rem; min-width: 0; }
+  .gallery--preview .gallery__list { gap: var(--space-s); }
+  .gallery--preview .gallery__item { flex-basis: calc(50% - var(--space-s)); max-width: 15rem; }
+  .gallery__link { aspect-ratio: 4 / 5; }
+  .gallery__link :global(.gallery__img) { height: 100%; object-fit: cover; object-position: 50% 35%; }
+  figcaption { justify-content: center; text-align: center; }
 
   .gallery__link {
     display: block;
@@ -206,13 +204,12 @@ const items = await Promise.all(
 
   figcaption {
     display: flex;
-    justify-content: space-between;
     gap: var(--space-xs);
     padding-top: 0.45rem;
     font-size: var(--step--1);
     color: var(--ink-soft);
   }
-  .gallery__era { color: var(--copper); letter-spacing: 0.08em; flex: none; }
+  .gallery__era { color: var(--brown); letter-spacing: 0.08em; flex: none; }
 
   /* lightbox */
   .lightbox {

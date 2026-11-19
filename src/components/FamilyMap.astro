@@ -1,0 +1,833 @@
+---
+// Full family map. Opens over the page it sits on and closes back to the same spot.
+// `home` is the id of the card that opens it; arriving straight on #family lands
+// there on the way out. Without JS it still opens through #family (CSS :target).
+import { Picture } from 'astro:assets';
+import { render } from 'astro:content';
+import { getTributes, excerpt } from '../lib/tributes';
+import {
+  layout, branches, byId, childrenOf, spousesOf, parentsOf, linkedFrom, photoOf,
+  displayName, fullName, initials, years, linkWord, NODE_W, ROOT, type Person,
+} from '../lib/family';
+
+interface Props { home?: string }
+const { home = 'family-preview' } = Astro.props;
+
+// tributes written by someone on the map show inside their card
+const tributes = await Promise.all(
+  (await getTributes())
+    .filter((t) => t.data.personId)
+    .map(async (t) => ({
+      personId: t.data.personId!,
+      name: t.data.name,
+      relation: t.data.relation,
+      quote: excerpt(t, 200),
+      Content: (await render(t)).Content,
+    })),
+);
+
+const { nodes, paths, labels, bands, width, height, root } = layout();
+const branchOf = branches();
+const sorted = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x);
+
+// faint contour lines around Mama, like height lines on a survey map
+const rand = (n: number) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+const ox = root ? root.x + NODE_W / 2 : width / 2, oy = root ? root.y + 30 : height / 2;
+const contours = Array.from({ length: 9 }, (_, i) => {
+  const r = 120 + i * 105;
+  const pts = Array.from({ length: 60 }, (_, k) => {
+    const t = (k / 60) * Math.PI * 2;
+    const wob = 1 + 0.09 * Math.sin(3 * t + rand(i) * 6) + 0.05 * Math.sin(5 * t + rand(i + 9) * 6);
+    return `${(ox + Math.cos(t) * r * 1.45 * wob).toFixed(1)},${(oy + Math.sin(t) * r * 0.8 * wob).toFixed(1)}`;
+  });
+  return `M${pts.join(' L')} Z`;
+});
+
+const status = (p: Person) => (p.late === true ? 'late' : p.late === false ? 'living' : 'unknown');
+const searchText = (p: Person) => [p.name, p.title, ...(p.otherNames ?? [])].filter(Boolean).join(' ').toLowerCase();
+const relList = (p: Person) => {
+  const out: { label: string; people: Person[] }[] = [
+    { label: 'Parents', people: parentsOf(p) },
+    { label: spousesOf(p).length > 1 ? 'Married to (in order)' : 'Married to', people: spousesOf(p) },
+    { label: 'Children', people: childrenOf(p.id) },
+    { label: 'Related', people: [...(p.linkedTo ? [byId.get(p.linkedTo)!] : []), ...linkedFrom(p.id)] },
+  ];
+  return out.filter((r) => r.people.length);
+};
+const tributeFor = (id: string) => tributes.filter((t) => t.personId === id);
+---
+<dialog id="family" class="fm" aria-labelledby="fm-title" data-home={home}>
+  <header class="fm-bar">
+    <a class="fm-back" href={`#${home}`} data-family-exit>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M10 6 4 12l6 6M4 12h11a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Back to the story</span>
+    </a>
+    <h2 id="fm-title" class="fm-title">Mama&rsquo;s family map</h2>
+    <button class="fm-filter-toggle" type="button" aria-expanded="false" aria-controls="fm-filters" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <span>Filter</span>
+    </button>
+  </header>
+
+  <div id="fm-filters" class="fm-filters" hidden>
+    <div class="fm-group" role="group" aria-labelledby="fm-g1">
+      <span id="fm-g1" class="fm-group__label">Show</span>
+      <button type="button" class="fm-chip" data-filter="branch" data-value="all" aria-pressed="true">Everyone</button>
+      <button type="button" class="fm-chip" data-filter="branch" data-value="line" aria-pressed="false">Her children &amp; their families</button>
+      <button type="button" class="fm-chip" data-filter="branch" data-value="parents" aria-pressed="false">Her own people</button>
+      <button type="button" class="fm-chip" data-filter="branch" data-value="husband" aria-pressed="false">Her husband&rsquo;s people</button>
+    </div>
+    <div class="fm-group" role="group" aria-labelledby="fm-g2">
+      <span id="fm-g2" class="fm-group__label">Living or late</span>
+      <button type="button" class="fm-chip" data-filter="status" data-value="all" aria-pressed="true">All</button>
+      <button type="button" class="fm-chip" data-filter="status" data-value="living" aria-pressed="false">Living</button>
+      <button type="button" class="fm-chip" data-filter="status" data-value="late" aria-pressed="false">Late</button>
+    </div>
+    <div class="fm-group fm-group--search">
+      <label for="fm-search" class="fm-group__label">Find a name</label>
+      <input id="fm-search" type="search" autocomplete="off" enterkeyhint="search" placeholder="e.g. Fidelis" />
+    </div>
+    <label class="fm-hide"><input type="checkbox" id="fm-hide" /> Hide everyone else</label>
+    <p class="fm-count" aria-live="polite"></p>
+  </div>
+
+  <div class="fm-viewport" tabindex="0" aria-label="Family map. Scroll or drag to move around.">
+    <div class="fm-sizer" style={`width:${width}px;height:${height}px`}>
+      <div class="fm-canvas" style={`width:${width}px;height:${height}px`}>
+        <svg class="fm-lines" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+          <g class="fm-contours">{contours.map((d) => <path d={d} />)}</g>
+          <g class="fm-bands">
+            {bands.map((b) => (
+              <>
+                <line x1="0" x2={width} y1={b.y - 26} y2={b.y - 26} />
+                <text x="24" y={b.y - 34}>{b.label}</text>
+              </>
+            ))}
+          </g>
+          {paths.map((p) => <path class={`fm-path fm-path--${p.kind}`} d={p.d} data-ids={p.ids.join(' ')} />)}
+          {labels.map((l) => <text class="fm-linklabel" x={l.x} y={l.y - 6} text-anchor="middle" data-ids={l.ids.join(' ')}>{l.text}</text>)}
+        </svg>
+
+        {sorted.map(({ p, x, y }) => {
+          const photo = photoOf(p);
+          return (
+            <a
+              href={`#about-${p.id}`}
+              id={`family-${p.id}`}
+              class:list={['fm-node', { 'fm-node--root': p.id === ROOT, 'fm-node--pending': p.pending, 'fm-node--late': p.late }]}
+              style={`left:${x}px;top:${y}px`}
+              data-id={p.id}
+              data-branch={[...(branchOf.get(p.id) ?? [])].join(' ')}
+              data-status={status(p)}
+              data-search={searchText(p)}
+            >
+              <span class="fm-pin" aria-hidden="true">
+                {photo ? (
+                  <Picture src={photo} alt="" formats={['avif']} fallbackFormat="webp" widths={[p.id === ROOT ? 132 : 88]} sizes={p.id === ROOT ? '66px' : '44px'} quality={68} loading="lazy" decoding="async" />
+                ) : (
+                  <span>{initials(p) || '?'}</span>
+                )}
+              </span>
+              <span class="fm-label">
+                <span class="fm-name">{fullName(p)}</span>
+                {years(p) && <span class="fm-years">{years(p)}</span>}
+                {p.childOf && <span class="fm-years">{p.childOf.toLowerCase()}</span>}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+
+  <div class="fm-zoom" hidden>
+    <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+    <button type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+    <button type="button" data-zoom="fit" aria-label="See the whole map">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <button type="button" data-zoom="home" aria-label="Back to Mama">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/></svg>
+    </button>
+  </div>
+
+  <svg class="fm-compass" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="1" opacity=".5" />
+    <circle cx="50" cy="50" r="38" fill="none" stroke="currentColor" stroke-width=".6" stroke-dasharray="2 3" opacity=".5" />
+    <path d="M50 8 56 50 50 92 44 50Z" fill="currentColor" opacity=".25" />
+    <path d="M50 8 56 50H44Z" fill="currentColor" />
+    <path d="M8 50 50 45 92 50 50 55Z" fill="currentColor" opacity=".18" />
+    <text x="50" y="6" text-anchor="middle" font-size="9" fill="currentColor">N</text>
+  </svg>
+
+  <p class="fm-legend" aria-hidden="true">
+    <span><i class="lg lg--marriage"></i>married</span>
+    <span><i class="lg lg--child"></i>child</span>
+    <span><i class="lg lg--adopted"></i>adopted</span>
+    <span><i class="lg lg--link"></i>other relation</span>
+  </p>
+
+  <aside class="fm-panel" aria-label="About this person">
+    {nodes.map(({ p }) => {
+      const photo = photoOf(p);
+      const t = tributeFor(p.id);
+      const facts = p.nameOnly || p.private ? [] : [
+        p.born && ['Born', [p.born, p.bornWhere].filter(Boolean).join(', ')],
+        !p.born && p.bornWhere && ['Born in', p.bornWhere],
+        p.died && ['Died', p.died],
+        p.hometown && ['From', p.hometown],
+        p.work && ['Work / role', p.work],
+      ].filter(Boolean) as [string, string][];
+      return (
+        <article class="fm-card" id={`about-${p.id}`} aria-labelledby={`about-${p.id}-name`} tabindex="-1">
+          <a class="fm-card__close" href={`#family-${p.id}`} data-card-close aria-label="Close">&times;</a>
+          <header class="fm-card__head">
+            <span class="fm-card__pin" aria-hidden="true">
+              {photo ? (
+                <Picture src={photo} alt="" formats={['avif']} fallbackFormat="webp" widths={[144]} sizes="72px" quality={70} loading="lazy" decoding="async" />
+              ) : (
+                <span>{initials(p) || '?'}</span>
+              )}
+            </span>
+            <div>
+              <h3 id={`about-${p.id}-name`} class="fm-card__name">{fullName(p)}</h3>
+              {years(p) && <p class="fm-card__years">{years(p)}</p>}
+              {p.pending && <p class="fm-card__soon">We are still gathering this name.</p>}
+            </div>
+          </header>
+          {p.otherNames && p.otherNames.length > 0 && <p class="fm-card__aka">Also known as {p.otherNames.join(' · ')}</p>}
+          {facts.length > 0 && (
+            <dl class="fm-card__facts">
+              {facts.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}
+            </dl>
+          )}
+          {!p.nameOnly && p.note && <p class="fm-card__note">{p.note}</p>}
+          {relList(p).map((r) => (
+            <div class="fm-card__rel">
+              <h4>{r.label}</h4>
+              <ul role="list">
+                {r.people.map((q) => (
+                  <li>
+                    <a href={`#about-${q.id}`} data-jump={q.id}>{displayName(q)}</a>
+                    {r.label === 'Related' && (q.linkedTo === p.id ? <span> ({linkWord(q.link, q.sex)})</span> : <span> (as {linkWord(p.link, p.sex)})</span>)}
+                    {q.childOf && r.label === 'Children' && <span> ({q.childOf.toLowerCase()})</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {t.map((tr) => (
+            <figure class="fm-card__tribute">
+              <blockquote>{tr.quote}</blockquote>
+              <figcaption>From their tribute</figcaption>
+              <details>
+                <summary>Read the whole tribute</summary>
+                <div class="prose"><tr.Content /></div>
+              </details>
+            </figure>
+          ))}
+        </article>
+      );
+    })}
+  </aside>
+</dialog>
+
+<style>
+  /* closed: hidden; opened by showModal() or, without JS, by #family / #family-P001 */
+  .fm { display: none; }
+  .fm[open], .fm:not(.is-js):target, .fm:not(.is-js):has(:target) {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 40%, transparent 55%, rgb(123 74 43 / 14%)),
+      #f5ecdc;
+    overflow: hidden;
+  }
+  .fm::backdrop { background: rgb(27 21 16 / 55%); }
+
+  .fm-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    padding: 0.5rem var(--space-s);
+    background: var(--navy-deep);
+    color: #fff;
+    box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+    z-index: 3;
+  }
+  .fm-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45em;
+    min-height: 48px;
+    padding: 0.4em 1em 0.4em 0.8em;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: var(--navy-deep);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .fm-back:hover { background: #fff; color: var(--navy-deep); }
+  .fm-title {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--step-1);
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (max-width: 26rem) { .fm-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .fm-bar { justify-content: space-between; } }
+  .fm-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: 48px;
+    padding: 0 1em;
+    border: 1px solid rgb(255 255 255 / 45%);
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+  }
+  .fm-filter-toggle[aria-expanded='true'] { background: rgb(255 255 255 / 14%); }
+
+  .fm-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1.4rem;
+    align-items: center;
+    padding: 0.7rem var(--space-s);
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+    font-size: var(--step--1);
+    z-index: 2;
+    max-height: 45dvh;
+    overflow-y: auto;
+  }
+  .fm-group { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+  .fm-group__label { width: 100%; font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brown); }
+  .fm-chip {
+    min-height: 44px;
+    padding: 0.3em 0.95em;
+    border: 1px solid var(--brown-soft);
+    border-radius: 999px;
+    background: var(--ivory);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .fm-chip[aria-pressed='true'] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .fm-group--search input {
+    min-height: 44px;
+    width: min(16rem, 100%);
+    padding: 0.3em 0.8em;
+    border: 1px solid var(--brown-soft);
+    border-radius: 0.4rem;
+    background: #fff;
+  }
+  .fm-hide { display: inline-flex; gap: 0.5em; align-items: center; min-height: 44px; cursor: pointer; }
+  .fm-hide input { width: 1.25rem; height: 1.25rem; accent-color: var(--navy); }
+  .fm-count { color: var(--ink-soft); }
+
+  .fm-viewport {
+    position: relative;
+    overflow: auto;
+    overscroll-behavior: contain;
+    cursor: grab;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fm-viewport.is-dragging { cursor: grabbing; user-select: none; }
+  .fm-viewport:focus-visible { outline-offset: -4px; }
+  .fm-sizer { position: relative; }
+  .fm-canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+
+  .fm-lines { position: absolute; inset: 0; overflow: visible; }
+  .fm-contours path { fill: none; stroke: var(--brown); stroke-opacity: 0.09; stroke-width: 1.2; }
+  .fm-contours path:nth-child(3n) { stroke-opacity: 0.15; }
+  .fm-bands line { stroke: var(--brown-soft); stroke-opacity: 0.3; stroke-dasharray: 2 8; }
+  .fm-bands text { font: italic 15px var(--font-head); fill: var(--brown); letter-spacing: 0.08em; }
+  .fm-path { fill: none; stroke: var(--brown); stroke-width: 2.2; stroke-linecap: round; transition: opacity 0.25s; }
+  .fm-path--marriage { stroke: var(--navy); stroke-width: 3; }
+  .fm-path--adopted { stroke-dasharray: 7 6; }
+  .fm-path--link { stroke: var(--brown-soft); stroke-dasharray: 1 7; stroke-width: 2.6; }
+  .fm-linklabel { font: italic 14px var(--font-body); fill: var(--brown); paint-order: stroke; stroke: #f5ecdc; stroke-width: 5px; }
+
+  .fm-node {
+    position: absolute;
+    width: 172px;
+    display: grid;
+    justify-items: center;
+    gap: 0.3rem;
+    color: var(--ink);
+    text-decoration: none;
+    text-align: center;
+    transition: opacity 0.25s, transform 0.25s;
+  }
+  .fm-pin {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ivory);
+    box-shadow: 0 0 0 3px #f5ecdc, 0 0 0 5px var(--brown-soft), 0 3px 8px rgb(0 0 0 / 18%);
+    font: 600 1rem var(--font-head);
+    color: var(--brown);
+  }
+  .fm-pin :global(picture), .fm-pin :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .fm-label {
+    display: grid;
+    padding: 0.35rem 0.6rem 0.4rem;
+    border-radius: 0.4rem;
+    background: rgb(255 252 246 / 92%);
+    border: 1px solid rgb(123 74 43 / 30%);
+    box-shadow: 0 2px 6px rgb(60 40 20 / 10%);
+    line-height: 1.25;
+  }
+  .fm-name { font: 600 1.02rem var(--font-head); color: var(--navy-deep); }
+  .fm-years { font-size: 0.82rem; color: var(--ink-soft); }
+  .fm-node--pending .fm-name { font-style: italic; font-weight: 500; color: var(--ink-soft); }
+  .fm-node--pending .fm-pin { background: var(--paper); box-shadow: 0 0 0 3px #f5ecdc, 0 0 0 5px var(--brown-soft), 0 3px 8px rgb(0 0 0 / 12%); border: 1px dashed var(--brown-soft); }
+  .fm-node--late .fm-label { background: rgb(240 232 220 / 95%); }
+  .fm-node--root .fm-pin { width: 68px; height: 68px; margin-top: -22px; box-shadow: 0 0 0 4px #f5ecdc, 0 0 0 7px var(--navy), 0 4px 14px rgb(0 0 0 / 25%); }
+  .fm-node--root .fm-label { background: var(--navy-deep); border-color: var(--navy-deep); }
+  .fm-node--root .fm-name { color: #fff; font-size: 1.1rem; }
+  .fm-node--root .fm-years { color: var(--gold-soft); }
+  .fm-node:hover .fm-label, .fm-node:focus-visible .fm-label { border-color: var(--navy); box-shadow: 0 0 0 2px var(--navy); }
+  .fm-node.is-active .fm-label { box-shadow: 0 0 0 3px var(--gold); }
+
+  .fm-node.is-dim, .fm-path.is-dim, .fm-linklabel.is-dim { opacity: 0.18; }
+  .fm.hide-dim .fm-node.is-dim, .fm.hide-dim .fm-path.is-dim, .fm.hide-dim .fm-linklabel.is-dim { opacity: 0; pointer-events: none; visibility: hidden; }
+  .fm-node.is-hit .fm-pin { box-shadow: 0 0 0 3px #f5ecdc, 0 0 0 6px var(--gold), 0 0 18px var(--gold); }
+
+  .fm-zoom {
+    position: absolute;
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(3.2rem, calc(env(safe-area-inset-bottom) + 2.6rem));
+    display: grid;
+    gap: 0.4rem;
+    z-index: 2;
+  }
+  .fm-zoom button {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--brown-soft);
+    border-radius: 50%;
+    background: var(--ivory);
+    color: var(--navy-deep);
+    font: 600 1.5rem/1 var(--font-body);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .fm-zoom button:hover { background: #fff; }
+
+  .fm-compass {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 3rem;
+    width: 64px;
+    color: var(--brown);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .fm-legend {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.2rem 1.1rem;
+    padding: 0.45rem 0.75rem calc(0.45rem + env(safe-area-inset-bottom));
+    background: rgb(242 233 220 / 94%);
+    border-top: 1px solid var(--line);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    z-index: 2;
+  }
+  .lg { display: inline-block; width: 1.6rem; height: 0; margin-right: 0.35rem; vertical-align: middle; border-top: 2px solid var(--brown); }
+  .lg--marriage { border-top: 3px solid var(--navy); }
+  .lg--adopted { border-top-style: dashed; }
+  .lg--link { border-top: 3px dotted var(--brown-soft); }
+
+  /* person card: side drawer on wide screens, bottom sheet on phones */
+  .fm-panel {
+    position: absolute;
+    z-index: 4;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    max-height: 62dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--ivory);
+    border-top: 3px solid var(--gold);
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -10px 30px rgb(0 0 0 / 25%);
+    transform: translateY(105%);
+    transition: transform 0.3s ease;
+    visibility: hidden;
+  }
+  .fm-panel:has(.is-active), .fm:not(.is-js) .fm-panel:has(:target) { transform: none; visibility: visible; }
+  @media (min-width: 48rem) {
+    .fm-panel {
+      top: 4.2rem;
+      left: auto;
+      width: 24rem;
+      max-height: none;
+      border-top: 0;
+      border-left: 3px solid var(--gold);
+      border-radius: 0;
+      transform: translateX(105%);
+    }
+  }
+  .fm-card { display: none; position: relative; padding: var(--space-m) var(--space-m) calc(var(--space-l) + env(safe-area-inset-bottom)); }
+  .fm-card.is-active, .fm:not(.is-js) .fm-card:target { display: block; }
+  .fm-card:focus { outline: none; }
+  .fm-card__close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 1.8rem;
+    line-height: 1;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+  .fm-card__close:hover { background: var(--paper); color: var(--ink); }
+  .fm-card__head { display: flex; gap: var(--space-s); align-items: center; padding-right: 2.5rem; }
+  .fm-card__pin {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--paper);
+    box-shadow: 0 0 0 3px var(--ivory), 0 0 0 5px var(--brown-soft);
+    font: 600 1.4rem var(--font-head);
+    color: var(--brown);
+  }
+  .fm-card__pin :global(picture), .fm-card__pin :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .fm-card__name { font-size: var(--step-2); line-height: 1.1; }
+  .fm-card__years { color: var(--brown); }
+  .fm-card__soon { font-style: italic; color: var(--ink-soft); font-size: var(--step--1); }
+  .fm-card__aka { margin-top: var(--space-s); font-style: italic; color: var(--ink-soft); }
+  .fm-card__facts { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin-top: var(--space-s); }
+  .fm-card__facts dt { color: var(--brown); font-size: var(--step--1); letter-spacing: 0.04em; padding-top: 0.15em; }
+  .fm-card__note { margin-top: var(--space-s); }
+  .fm-card__rel { margin-top: var(--space-s); }
+  .fm-card__rel h4 { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brown); font-weight: 400; }
+  .fm-card__rel ul { padding: 0; list-style: none; }
+  .fm-card__rel li { padding-block: 0.15rem; }
+  .fm-card__rel a { display: inline-block; padding-block: 0.4rem; }
+  .fm-card__tribute { margin-top: var(--space-m); padding: var(--space-s); border-left: 3px solid var(--gold); background: var(--paper); border-radius: 0 var(--radius) var(--radius) 0; }
+  .fm-card__tribute blockquote { font-family: var(--font-head); font-size: var(--step-1); font-style: italic; line-height: 1.35; }
+  .fm-card__tribute figcaption { font-size: var(--step--1); color: var(--ink-soft); margin-top: 0.3rem; }
+  .fm-card__tribute summary { cursor: pointer; color: var(--brown); min-height: 44px; display: flex; align-items: center; }
+
+  :global(html.fm-open) { overflow: hidden; }
+</style>
+
+<script>
+  const dlg = document.getElementById('family') as HTMLDialogElement;
+  const viewport = dlg.querySelector<HTMLElement>('.fm-viewport')!;
+  const sizer = dlg.querySelector<HTMLElement>('.fm-sizer')!;
+  const canvas = dlg.querySelector<HTMLElement>('.fm-canvas')!;
+  const panel = dlg.querySelector<HTMLElement>('.fm-panel')!;
+  const filters = dlg.querySelector<HTMLElement>('.fm-filters')!;
+  const toggle = dlg.querySelector<HTMLButtonElement>('.fm-filter-toggle')!;
+  const nodes = [...dlg.querySelectorAll<HTMLAnchorElement>('.fm-node')];
+  const lines = [...dlg.querySelectorAll<SVGElement>('[data-ids]')];
+  const W = canvas.offsetWidth || parseFloat(canvas.style.width);
+  const H = canvas.offsetHeight || parseFloat(canvas.style.height);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const HASH = /^#family(?:-(P\d+))?$/;
+
+  // JS is here: CSS :target fallbacks off, controls that need JS on
+  dlg.classList.add('is-js');
+  dlg.querySelector<HTMLElement>('.fm-zoom')!.hidden = false;
+  toggle.hidden = false;
+  const wide = matchMedia('(min-width: 48rem)');
+  const syncFilters = () => { filters.hidden = toggle.getAttribute('aria-expanded') !== 'true'; };
+  syncFilters();
+  toggle.addEventListener('click', () => {
+    toggle.setAttribute('aria-expanded', String(toggle.getAttribute('aria-expanded') !== 'true'));
+    syncFilters();
+  });
+
+  // ---------- zoom & pan ----------
+  let z = 1;
+  const clampZ = (v: number) => Math.min(1.8, Math.max(fitZ(), v));
+  function fitZ() { return Math.min(1, (viewport.clientWidth - 16) / W, (viewport.clientHeight - 16) / H); }
+  function setZoom(next: number, ax = viewport.clientWidth / 2, ay = viewport.clientHeight / 2) {
+    const cx = (viewport.scrollLeft + ax) / z, cy = (viewport.scrollTop + ay) / z;
+    z = clampZ(next);
+    canvas.style.transform = `scale(${z})`;
+    sizer.style.width = `${W * z}px`;
+    sizer.style.height = `${H * z}px`;
+    viewport.scrollLeft = cx * z - ax;
+    viewport.scrollTop = cy * z - ay;
+  }
+  function centerOn(id: string, smooth = true) {
+    const n = dlg.querySelector<HTMLElement>(`#family-${id}`);
+    if (!n) return;
+    const x = (n.offsetLeft + n.offsetWidth / 2) * z - viewport.clientWidth / 2 + (cardOpen() && wide.matches ? 192 : 0);
+    const y = (n.offsetTop + 40) * z - viewport.clientHeight / (cardOpen() && !wide.matches ? 4 : 2.4);
+    viewport.scrollTo({ left: x, top: y, behavior: smooth && !reduced.matches ? 'smooth' : 'auto' });
+  }
+  dlg.querySelector('.fm-zoom')!.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-zoom]');
+    if (!b) return;
+    const k = b.dataset.zoom;
+    if (k === 'in') setZoom(z * 1.25);
+    else if (k === 'out') setZoom(z / 1.25);
+    else if (k === 'fit') { setZoom(fitZ()); viewport.scrollTo({ left: (W * z - viewport.clientWidth) / 2, top: 0 }); }
+    else { setZoom(1); centerOn('P001'); }
+  });
+  viewport.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const r = viewport.getBoundingClientRect();
+    setZoom(z * Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+
+  // two-finger pinch
+  let pinch: { d: number; z: number } | null = null;
+  const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  viewport.addEventListener('touchstart', (e) => { if (e.touches.length === 2) pinch = { d: dist(e.touches), z }; }, { passive: true });
+  viewport.addEventListener('touchmove', (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const r = viewport.getBoundingClientRect();
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - r.top;
+    setZoom(pinch.z * (dist(e.touches) / pinch.d), mx, my);
+  }, { passive: false });
+  viewport.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch = null; });
+
+  // drag to pan with a mouse (touch already scrolls)
+  let drag: { x: number; y: number; l: number; t: number; moved: boolean } | null = null;
+  viewport.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, l: viewport.scrollLeft, t: viewport.scrollTop, moved: false };
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    viewport.classList.add('is-dragging');
+    viewport.scrollLeft = drag.l - dx;
+    viewport.scrollTop = drag.t - dy;
+  });
+  window.addEventListener('pointerup', () => {
+    if (drag?.moved) viewport.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); }, { capture: true, once: true });
+    drag = null;
+    viewport.classList.remove('is-dragging');
+  });
+
+  // ---------- person cards ----------
+  const cardOpen = () => !!panel.querySelector('.fm-card.is-active');
+  let lastNode: HTMLElement | null = null;
+  function showCard(id: string) {
+    panel.querySelectorAll('.is-active').forEach((c) => c.classList.remove('is-active'));
+    nodes.forEach((n) => n.classList.toggle('is-active', n.dataset.id === id));
+    const card = panel.querySelector<HTMLElement>(`#about-${id}`);
+    if (!card) return;
+    card.classList.add('is-active');
+    panel.scrollTop = 0;
+    card.focus({ preventScroll: true });
+    centerOn(id);
+  }
+  function hideCard() {
+    panel.querySelectorAll('.is-active').forEach((c) => c.classList.remove('is-active'));
+    nodes.forEach((n) => n.classList.remove('is-active'));
+    lastNode?.focus({ preventScroll: true });
+  }
+  canvas.addEventListener('click', (e) => {
+    const n = (e.target as Element).closest<HTMLAnchorElement>('.fm-node');
+    if (!n) return;
+    e.preventDefault();
+    lastNode = n;
+    showCard(n.dataset.id!);
+  });
+  panel.addEventListener('click', (e) => {
+    const a = (e.target as Element).closest<HTMLAnchorElement>('a');
+    if (!a) return;
+    if (a.dataset.jump) { e.preventDefault(); lastNode = dlg.querySelector(`#family-${a.dataset.jump}`); showCard(a.dataset.jump); }
+    else if (a.hasAttribute('data-card-close')) { e.preventDefault(); hideCard(); }
+  });
+
+  // ---------- filters ----------
+  const state = { branch: 'all', status: 'all', q: '', hide: false };
+  const count = dlg.querySelector<HTMLElement>('.fm-count')!;
+  let hits: string[] = [];
+  let hitAt = -1;
+  function apply() {
+    const on = new Set<string>();
+    hits = [];
+    for (const n of nodes) {
+      const ok = (state.branch === 'all' || n.dataset.branch!.split(' ').includes(state.branch))
+        && (state.status === 'all' || n.dataset.status === state.status)
+        && (!state.q || n.dataset.search!.includes(state.q));
+      n.classList.toggle('is-dim', !ok);
+      n.classList.toggle('is-hit', !!state.q && ok);
+      if (ok) on.add(n.dataset.id!);
+      if (ok && state.q) hits.push(n.dataset.id!);
+    }
+    for (const l of lines) {
+      const ids = l.dataset.ids!.split(' ');
+      l.classList.toggle('is-dim', ids.filter((i) => on.has(i)).length < Math.min(2, ids.length));
+    }
+    dlg.classList.toggle('hide-dim', state.hide);
+    const all = state.branch === 'all' && state.status === 'all' && !state.q;
+    count.textContent = all ? `${nodes.length} people on the map` : `Showing ${on.size} of ${nodes.length}`;
+  }
+  filters.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('[data-filter]');
+    if (!b) return;
+    filters.querySelectorAll<HTMLButtonElement>(`[data-filter="${b.dataset.filter}"]`).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    (state as any)[b.dataset.filter!] = b.dataset.value;
+    apply();
+  });
+  const search = dlg.querySelector<HTMLInputElement>('#fm-search')!;
+  search.addEventListener('input', () => { state.q = search.value.trim().toLowerCase(); hitAt = -1; apply(); });
+  search.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || !hits.length) return;
+    e.preventDefault();
+    hitAt = (hitAt + 1) % hits.length;
+    centerOn(hits[hitAt]);
+  });
+  dlg.querySelector<HTMLInputElement>('#fm-hide')!.addEventListener('change', (e) => { state.hide = (e.target as HTMLInputElement).checked; apply(); });
+  apply();
+
+  // ---------- falling in, and jumping back out ----------
+  const preview = document.getElementById(dlg.dataset.home!);
+  let saved: { y: number | null; trigger: HTMLElement | null; pushed: boolean } | null = null;
+
+  function hole() {
+    const target = preview?.querySelector<HTMLElement>('[data-family-origin]') ?? preview;
+    const r = target?.getBoundingClientRect();
+    const vw = innerWidth, vh = innerHeight;
+    const inView = r && r.bottom > 0 && r.top < vh;
+    const x = inView ? r.left + r.width / 2 : vw / 2;
+    const y = inView ? r.top + r.height / 2 : vh / 2;
+    const far = Math.hypot(Math.max(x, vw - x), Math.max(y, vh - y));
+    return { x, y, small: inView ? Math.max(r.width, r.height) / 2 : 24, far };
+  }
+
+  // the story page moves toward (or away from) the spot you fall into
+  function page(frames: Keyframe[], opts: KeyframeAnimationOptions, h: { x: number; y: number }) {
+    const main = document.querySelector<HTMLElement>('main');
+    if (!main) return;
+    main.style.transformOrigin = `${h.x}px ${h.y + scrollY - main.getBoundingClientRect().top - scrollY}px`;
+    main.animate(frames, opts).finished.then(() => { main.style.transformOrigin = ''; }, () => {});
+  }
+
+  // y: null means we arrived on the map from elsewhere; leaving it lands on the preview
+  function open(personId: string | null, trigger: HTMLElement | null, pushed: boolean, animate = true, y: number | null = scrollY) {
+    if (dlg.open) { if (personId) showCard(personId); return; }
+    saved = { y, trigger, pushed };
+    const h = hole();
+    document.documentElement.classList.add('fm-open');
+    dlg.showModal();
+    setZoom(1);
+    if (personId && dlg.querySelector(`#family-${personId}`)) { lastNode = dlg.querySelector(`#family-${personId}`); showCard(personId); centerOn(personId, false); }
+    else centerOn('P001', false);
+    if (!animate || reduced.matches) return;
+    const fall = 'cubic-bezier(.55,0,.8,.25)';
+    dlg.animate(
+      [{ clipPath: `circle(${h.small}px at ${h.x}px ${h.y}px)` }, { clipPath: `circle(${h.far}px at ${h.x}px ${h.y}px)` }],
+      { duration: 720, easing: fall },
+    );
+    viewport.animate([{ transform: 'scale(1.6)', filter: 'blur(3px)' }, { transform: 'scale(1)', filter: 'blur(0)' }], { duration: 820, easing: 'cubic-bezier(.2,.7,.3,1)' });
+    page([{ transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(1.25)', filter: 'brightness(.35)' }], { duration: 720, easing: fall }, h);
+  }
+
+  let closing = false;
+  async function close() {
+    if (!dlg.open || closing) return;
+    closing = true;
+    // came in from elsewhere: put the preview under the map first, so we jump back into it
+    if (saved && saved.y === null) { preview?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior }); saved.y = scrollY; }
+    const y = saved?.y ?? scrollY;
+    if (!reduced.matches) {
+      const h = hole();
+      const up = 'cubic-bezier(.2,.75,.3,1)';
+      const a = dlg.animate(
+        [{ clipPath: `circle(${h.far}px at ${h.x}px ${h.y}px)` }, { clipPath: `circle(${h.small}px at ${h.x}px ${h.y}px)` }],
+        { duration: 560, easing: up, fill: 'forwards' },
+      );
+      viewport.animate([{ transform: 'scale(1)' }, { transform: 'scale(.6)' }], { duration: 560, easing: up, fill: 'forwards' });
+      page([{ transform: 'scale(1.18)', filter: 'brightness(.4)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: 560, easing: up }, h);
+      await a.finished.catch(() => {});
+    }
+    dlg.close();
+    dlg.getAnimations({ subtree: true }).forEach((a) => a.cancel());
+    hideCard();
+    document.documentElement.classList.remove('fm-open');
+    scrollTo({ top: y, behavior: 'instant' as ScrollBehavior });
+    saved?.trigger?.focus({ preventScroll: true });
+    saved = null;
+    closing = false;
+  }
+
+  function exit() {
+    if (saved?.pushed) history.back(); // popstate does the closing
+    else { history.replaceState(history.state, '', location.pathname + location.search); close(); }
+  }
+
+  dlg.querySelector('[data-family-exit]')!.addEventListener('click', (e) => { e.preventDefault(); exit(); });
+  dlg.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    if (cardOpen()) hideCard(); else exit();
+  });
+  addEventListener('popstate', () => { if (dlg.open && !HASH.test(location.hash)) close(); });
+
+  // any link to #family or #family-P004 on this page opens the map instead of jumping
+  document.addEventListener('click', (e) => {
+    const a = (e.target as Element).closest<HTMLAnchorElement>('a[href*="#family"]');
+    if (!a || dlg.contains(a) || a.pathname !== location.pathname) return;
+    const m = a.hash.match(HASH);
+    if (!m) return;
+    e.preventDefault();
+    history.pushState({ familyMap: true }, '', a.hash);
+    open(m[1] ?? null, a, true);
+  });
+
+  // the address bar changed to #family… without a click (typed, or a link elsewhere on the page)
+  addEventListener('hashchange', () => {
+    const m = location.hash.match(HASH);
+    if (m && !dlg.open) open(m[1] ?? null, null, true, true, null);
+  });
+
+  // arriving from another page with #family in the address
+  const m = location.hash.match(HASH);
+  if (m) {
+    preview?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+    open(m[1] ?? null, preview?.querySelector('[data-family-open]') ?? null, false, false, null);
+  }
+</script>

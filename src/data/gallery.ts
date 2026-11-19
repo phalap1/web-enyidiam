@@ -1,16 +1,13 @@
 import type { ImageMetadata } from 'astro';
 
-import redGele from '../assets/portraits/red-gele.jpg';
-import whiteLace from '../assets/portraits/white-lace.jpg';
-import pinkLace from '../assets/portraits/pink-lace.jpg';
-import childhood from '../assets/gallery/childhood-arochukwu.jpg';
-import wedding from '../assets/gallery/wedding-day.jpg';
-import youngMother from '../assets/gallery/young-mother.jpg';
-import market from '../assets/gallery/market-days.jpg';
-import church from '../assets/gallery/church-women.jpg';
-import grandchild from '../assets/gallery/first-grandchild.jpg';
-import christmas from '../assets/gallery/family-christmas.jpg';
-import seventyFifth from '../assets/gallery/seventy-fifth.jpg';
+import blueHeadtie from '../assets/photos/blue-headtie.jpg';
+import face from '../assets/photos/blue-headtie-face.jpg';
+import whiteLace from '../assets/photos/white-lace.jpg';
+import seatedYellow from '../assets/photos/seated-yellow.jpg';
+import redGele from '../assets/photos/red-gele.jpg';
+import pinkLace from '../assets/photos/pink-lace.jpg';
+import blackWhite from '../assets/photos/black-and-white.jpg';
+import records from './details.json';
 
 export interface Photo {
   src: ImageMetadata;
@@ -19,19 +16,33 @@ export interface Photo {
   era?: string;
 }
 
-// gallery order. originals go in src/assets/gallery
-export const photos: Photo[] = [
-  { src: childhood, alt: 'Placeholder for a childhood photograph in Arochukwu', caption: 'Growing up in Ugwuakuma', era: '1950s' },
-  { src: wedding, alt: 'Placeholder for her wedding photograph', caption: 'Her wedding day', era: '1960s' },
-  { src: youngMother, alt: 'Placeholder for a photograph of her as a young mother', caption: 'A young mother', era: '1970s' },
-  { src: market, alt: 'Placeholder for a photograph from her market days', caption: 'Market days', era: '1980s' },
-  { src: church, alt: 'Placeholder for a photograph with the Catholic Women Organisation', caption: 'With the Catholic Women Organisation', era: '1990s' },
-  { src: grandchild, alt: 'Placeholder for a photograph holding her first grandchild', caption: 'Her first grandchild', era: '2000s' },
-  { src: christmas, alt: 'Placeholder for a family Christmas photograph at Obichie Compound', caption: 'Christmas at Obichie Compound', era: '2010s' },
-  { src: pinkLace, alt: 'Nne in a pink embroidered lace blouse and white head-tie', caption: 'In pink lace', era: '2020s' },
-  { src: whiteLace, alt: 'Nne seated in a white lace blouse, coral beads and a silver head-tie', caption: 'In white lace and coral beads', era: '2020s' },
-  { src: seventyFifth, alt: 'Placeholder for a photograph from her 75th birthday', caption: 'Her 75th birthday', era: '2023' },
-  { src: redGele, alt: 'Nne smiling in a red and gold head-tie with coral beads', caption: 'Radiant in red', era: '2020s' },
+// Gallery order. Every photo is cropped 4:5 with Mama in the middle, so the
+// grid stays even; keep new ones the same shape (src/assets/photos).
+const base: Photo[] = [
+  { src: blueHeadtie, alt: 'Mama in a white blouse, a blue patterned head-tie and coral beads', caption: 'In her blue head-tie' },
+  { src: blackWhite, alt: 'An older black and white photograph of Mama, seated in a white blouse with a brooch and a patterned wrapper', caption: 'An older photograph, from the framed print' },
+  { src: seatedYellow, alt: 'Mama as a younger woman, seated in a yellow blouse and a wine wrapper with gold patterns', caption: 'From a framed family print' },
+  { src: whiteLace, alt: 'Mama in a white lace blouse, coral beads and a silver head-tie', caption: 'In white lace and coral beads' },
+  { src: redGele, alt: 'Mama smiling in a red and gold head-tie with coral beads', caption: 'Radiant in red' },
+  { src: pinkLace, alt: 'Mama in a pink beaded lace blouse, coral beads and a silver head-tie', caption: 'In pink lace' },
 ];
 
-export const portraits = { redGele, whiteLace, pinkLace };
+// photos added through records/website-details.xlsx (npm run details)
+const files = import.meta.glob<{ default: ImageMetadata }>('../assets/photos/records/*.jpg', { eager: true });
+const added = (records.photos as { file: string; caption: string; alt: string; era?: string; home: boolean }[])
+  .filter((p) => files[`../assets/photos/records/${p.file}`])
+  .map((p) => ({ src: files[`../assets/photos/records/${p.file}`].default, alt: p.alt, caption: p.caption, era: p.era, home: p.home }));
+
+export const photos: Photo[] = [...base, ...added];
+// home page: the first four portraits plus any marked "Gallery and home page"
+export const homePhotos: Photo[] = [...base.slice(0, 4), ...added.filter((p) => p.home)].slice(0, 8);
+
+export const portraits = { blueHeadtie, face, whiteLace, seatedYellow, redGele, pinkLace, blackWhite };
+
+// the home page portrait fades through these (first one shows first)
+export const heroPortraits = [
+  { src: blueHeadtie, label: 'in a blue head-tie' },
+  { src: redGele, label: 'in a red and gold head-tie' },
+  { src: whiteLace, label: 'in white lace and coral beads' },
+  { src: pinkLace, label: 'in pink lace and coral beads' },
+];

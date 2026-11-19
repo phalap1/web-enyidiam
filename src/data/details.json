@@ -1,0 +1,35 @@
+{
+  "details": {
+    "tribute_email": "margaretenyidianwosu@gmail.com",
+    "tribute_whatsapp": "2348137639051",
+    "contact_name": "Mazi Fidelis Okoro Nwosu",
+    "contact_phone": "2348137639051",
+    "dress_code": "White &"
+  },
+  "videos": [
+    {
+      "id": "7wp0SD5kzBc",
+      "title": "Mama welcoming and accepting guests at her Home"
+    }
+  ],
+  "photos": [
+    {
+      "file": "enyidia2.jpg",
+      "caption": "3rd Son and Family",
+      "alt": "Mama’s son pst. Felix, wife and children",
+      "home": false
+    },
+    {
+      "file": "enyidia1.jpg",
+      "caption": "1st Son and Family",
+      "alt": "Mama’s son Mazi Fidelis, wife and children",
+      "home": true
+    },
+    {
+      "file": "enyidia.jpg",
+      "caption": "During Burial",
+      "alt": "The Burial of Dede Mama’s Brother",
+      "home": false
+    }
+  ]
+}

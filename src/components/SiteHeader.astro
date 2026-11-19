@@ -13,7 +13,7 @@ const links = [
 
 const here = Astro.url.pathname.replace(/\/?$/, '/');
 ---
-<header class="site-header">
+<header class="site-header" data-site-header>
   <div class="container site-header__inner">
     <a class="brand" href={url()} aria-label={`${person.fullName}, home`}>
       <span class="brand__name">{person.firstName} {person.christianName} {person.surname}</span>
@@ -31,11 +31,52 @@ const here = Astro.url.pathname.replace(/\/?$/, '/');
   </div>
 </header>
 
+<script>
+  // Slides away while reading down, comes back on any small scroll up.
+  const bar = document.querySelector<HTMLElement>('[data-site-header]');
+  if (bar) {
+    const NUDGE = 6; // px of upward scroll that brings it back
+    let last = scrollY;
+    let upBy = 0;
+    let queued = false;
+
+    const set = (hidden: boolean) => bar.classList.toggle('is-tucked', hidden);
+
+    const tick = () => {
+      queued = false;
+      // the family map locks the page; leave the bar alone until it closes
+      if (document.documentElement.classList.contains('fm-open')) { last = scrollY; return; }
+      const y = Math.max(0, scrollY);
+      const dy = y - last;
+      last = y;
+      if (y <= bar.offsetHeight) { upBy = 0; set(false); return; }
+      if (dy > 0) { upBy = 0; if (!bar.contains(document.activeElement)) set(true); }
+      else if (dy < 0) { upBy -= dy; if (upBy >= NUDGE) set(false); }
+    };
+
+    addEventListener('scroll', () => {
+      if (!queued) { queued = true; requestAnimationFrame(tick); }
+    }, { passive: true });
+    bar.addEventListener('focusin', () => set(false));
+    // pointer at the very top of the window on desktop also brings it back
+    addEventListener('mousemove', (e) => { if (e.clientY < 12) set(false); }, { passive: true });
+  }
+</script>
+
 <style>
   .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--ivory) 92%, transparent);
+    background: color-mix(in srgb, var(--ivory) 94%, transparent);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    transition: transform 0.28s ease, box-shadow 0.28s ease;
   }
+  .site-header.is-tucked { transform: translateY(calc(-100% - 2px)); }
+  .site-header:not(.is-tucked) { box-shadow: 0 2px 12px rgb(31 40 56 / 8%); }
+  @media (prefers-reduced-motion: reduce) { .site-header { transition: none; } }
   .site-header__inner {
     display: flex;
     flex-wrap: wrap;
@@ -58,7 +99,7 @@ const here = Astro.url.pathname.replace(/\/?$/, '/');
   .brand__dates {
     font-size: var(--step--1);
     letter-spacing: 0.18em;
-    color: var(--copper);
+    color: var(--brown);
   }
   nav { max-width: 100%; }
   .nav {
